@@ -1,5 +1,5 @@
-use redis_module::{Context, RedisError, RedisValue, parse_integer};
-use std::cmp::{min, max};
+use redis_module::{parse_integer, Context, RedisError, RedisValue};
+use std::cmp::{max, min};
 
 const MAX_TTL: i64 = 1000;
 const MIN_TTL: i64 = 0;
@@ -20,7 +20,7 @@ impl<'a> Bucket<'a> {
             ctx: ctx,
             key: key,
             capacity: capacity,
-            tokens: tokens
+            tokens: tokens,
         })
     }
 
@@ -29,7 +29,10 @@ impl<'a> Bucket<'a> {
             Err(RedisError::Str("ERR bucket is overflown"))
         } else {
             self.tokens -= tokens;
-            self.ctx.call("PSETEX", &[self.key, &MAX_TTL.to_string(), &self.tokens.to_string()])?;
+            self.ctx.call(
+                "PSETEX",
+                &[self.key, &MAX_TTL.to_string(), &self.tokens.to_string()],
+            )?;
             Ok(self.tokens)
         }
     }
@@ -40,7 +43,7 @@ impl<'a> Bucket<'a> {
         //     - The command returns -1 if the key exists but has no associated expire.
         let current_ttl = match ctx.call("PTTL", &[key])? {
             RedisValue::Integer(ttl) => max(MIN_TTL, ttl),
-            _ => MIN_TTL
+            _ => MIN_TTL,
         };
         let delta = max(MIN_TTL, MAX_TTL - current_ttl) as f64;
         let refilled_tokens = (0.001 * delta * capacity as f64) as i64;

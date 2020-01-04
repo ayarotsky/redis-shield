@@ -1,8 +1,9 @@
 mod bucket;
 
-#[macro_use] extern crate redis_module;
-use redis_module::{Context, RedisError, RedisResult, parse_integer};
+#[macro_use]
+extern crate redis_module;
 use bucket::Bucket;
+use redis_module::{parse_integer, Context, RedisError, RedisResult};
 
 fn redis_command(ctx: &Context, args: Vec<String>) -> RedisResult {
     if args.len() != 4 {
