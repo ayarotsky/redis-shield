@@ -1,0 +1,14 @@
+[package]
+name = "redis-shield"
+version = "0.1.0"
+authors = ["Alex Yarotsky <yarotsky.alex@gmail.com>"]
+edition = "2018"
+description = "A Redis module that provides rate limiting in Redis as a single command."
+license = "MIT"
+repository = "https://github.com/ayarotsky/redis-shield"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+redis-module = "0.6.0"
