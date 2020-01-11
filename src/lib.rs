@@ -31,7 +31,7 @@ fn redis_command(ctx: &Context, args: Vec<String>) -> RedisResult {
         MAX_ARGS_LEN => parse_integer(&args[4])?,
         _ => DEFAULT_TOKENS,
     };
-    let mut bucket = Bucket::new(ctx, &args[1], capacity)?;
+    let mut bucket = Bucket::new(ctx, &args[1], capacity, period)?;
     let remaining_tokens = bucket.pour(tokens)?;
 
     Ok(remaining_tokens.into())
