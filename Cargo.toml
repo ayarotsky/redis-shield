@@ -13,3 +13,6 @@ crate-type = ["cdylib"]
 [dependencies]
 redis-module = "0.6.0"
 num = "0.2.1"
+
+[dev-dependencies]
+redis = "0.15.1"
