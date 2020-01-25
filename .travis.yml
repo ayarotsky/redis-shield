@@ -15,6 +15,6 @@ notifications:
 
 before_script:
   - cargo build
-  - sudo redis-server --loadmodule $TRAVIS_BUILD_DIR/target/debug/libredis_shield.so
+  - sudo redis-server --loadmodule $TRAVIS_BUILD_DIR/target/debug/libredis_shield.so --daemonize yes
 script:
   - cargo test --verbose --all
