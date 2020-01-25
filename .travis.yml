@@ -7,7 +7,7 @@ rust:
 env:
   REDIS_URL=redis://127.0.0.1
 before_script:
-  - cargo build --verbose --all
-  - sudo redis-server --loadmodule target/debug/libredis_shield.dylib
+  - cargo build
+  - sudo redis-server --loadmodule $TRAVIS_BUILD_DIR/target/debug/libredis_shield.dylib
 script:
   - cargo test --verbose --all
