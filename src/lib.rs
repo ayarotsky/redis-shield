@@ -117,24 +117,23 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "An error was signalled by the server: bucket is overflown")]
     fn test_when_bucket_is_overflown() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_key_overflown";
 
         let _: () = con.del(bucket_key).unwrap();
 
-        let _: () = redis::cmd(super::REDIS_COMMAND)
+        let remaining_tokens: i64 = redis::cmd(super::REDIS_COMMAND)
             .arg(bucket_key)
             .arg(30)
             .arg(60)
             .arg(31)
             .query(&mut con)
             .unwrap();
+        assert_eq!(remaining_tokens, -1);
     }
 
     #[test]
-    #[should_panic(expected = "An error was signalled by the server: bucket is overflown")]
     fn test_sequential_requests() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_key_sequential_requests";
@@ -165,12 +164,16 @@ mod tests {
         ttl = con.pttl(bucket_key).unwrap();
         assert!(ttl >= 59900 && ttl <= 60000);
 
-        let _: () = redis::cmd(super::REDIS_COMMAND)
+        remaining_tokens = redis::cmd(super::REDIS_COMMAND)
             .arg(bucket_key)
             .arg(tokens)
             .arg(period)
             .query(&mut con)
             .unwrap();
+        assert_eq!(remaining_tokens, -1);
+
+        ttl = con.pttl(bucket_key).unwrap();
+        assert!(ttl >= 59900 && ttl <= 60000);
     }
 
     #[test]

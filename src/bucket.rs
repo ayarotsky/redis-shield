@@ -5,6 +5,7 @@ use std::cmp::{max, min};
 const MILLS_IN_SEC: i64 = 1000;
 const MIN_TTL: i64 = 0;
 const MIN_TOKENS: i64 = 0;
+const OVERFLOWN_RESPONSE: i64 = -1;
 
 pub struct Bucket<'a> {
     pub key: &'a str,
@@ -34,7 +35,7 @@ impl<'a> Bucket<'a> {
 
     pub fn pour(&mut self, tokens: i64) -> Result<i64, RedisError> {
         if tokens > self.tokens {
-            Err(RedisError::Str("ERR bucket is overflown"))
+            Ok(OVERFLOWN_RESPONSE)
         } else {
             self.tokens -= tokens;
             self.ctx.call(
