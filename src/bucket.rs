@@ -22,9 +22,9 @@ impl<'a> Bucket<'a> {
         period: i64,
     ) -> Result<Self, RedisError> {
         let mut bucket = Self {
-            ctx: ctx,
-            key: key,
-            capacity: capacity,
+            ctx,
+            key,
+            capacity,
             period: period * MILLS_IN_SEC,
             tokens: MIN_TOKENS,
         };
