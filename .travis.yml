@@ -1,13 +1,19 @@
 dist: trusty
 sudo: required
+env:
+  REDIS_URL=redis://127.0.0.1
+
 language: rust
 cache: cargo
 rust:
-  - 1.38.0
   - 1.39.0
   - 1.40.0
-env:
-  REDIS_URL=redis://127.0.0.1
+  - nightly
+
+jobs:
+  allow_failures:
+    - rust: nightly
+  fast_finish: true
 
 notifications:
   email:
@@ -17,4 +23,4 @@ before_script:
   - cargo build
   - sudo redis-server --loadmodule $TRAVIS_BUILD_DIR/target/debug/libredis_shield.so --daemonize yes
 script:
-  - cargo test --verbose --all
+  - cargo test
