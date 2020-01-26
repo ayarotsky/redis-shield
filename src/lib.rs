@@ -26,16 +26,26 @@ fn redis_command(ctx: &Context, args: Vec<String>) -> RedisResult {
 
     ctx.auto_memory();
 
-    let capacity = parse_integer(&args[2])?;
-    let period = parse_integer(&args[3])?;
+    let capacity = parse_positive_integer("capacity", &args[2])?;
+    let period = parse_positive_integer("period", &args[3])?;
     let tokens = match args.len() {
-        MAX_ARGS_LEN => parse_integer(&args[4])?,
+        MAX_ARGS_LEN => parse_positive_integer("tokens", &args[4])?,
         _ => DEFAULT_TOKENS,
     };
     let mut bucket = Bucket::new(ctx, &args[1], capacity, period)?;
     let remaining_tokens = bucket.pour(tokens)?;
 
     Ok(remaining_tokens.into())
+}
+
+fn parse_positive_integer(name: &str, value: &String) -> Result<i64, RedisError> {
+    match parse_integer(value) {
+        Ok(arg) if arg > 0 => Ok(arg),
+        _ => Err(RedisError::String(format!(
+            "ERR {} is not positive integer",
+            name
+        ))),
+    }
 }
 
 redis_module! {
@@ -46,6 +56,8 @@ redis_module! {
         [REDIS_COMMAND, redis_command, ""],
     ],
 }
+
+//////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
 mod tests {
@@ -58,6 +70,212 @@ mod tests {
         let redis_url = env::var("REDIS_URL").unwrap();
         let client = redis::Client::open(redis_url).unwrap();
         client.get_connection().unwrap()
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "An error was signalled by the server: wrong number of arguments for 'SHIELD.absorb' command"
+    )]
+    fn test_wrong_arity() {
+        let mut con = establish_connection();
+
+        let _: () = redis::cmd(super::REDIS_COMMAND).query(&mut con).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "An error was signalled by the server: capacity is not positive integer"
+    )]
+    fn test_when_capacity_is_string() {
+        let mut con = establish_connection();
+        let bucket_key = "redis-shield::test_key_new";
+
+        let _: () = redis::cmd(super::REDIS_COMMAND)
+            .arg(bucket_key)
+            .arg("abc")
+            .arg(60)
+            .query(&mut con)
+            .unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "An error was signalled by the server: capacity is not positive integer"
+    )]
+    fn test_when_capacity_is_float() {
+        let mut con = establish_connection();
+        let bucket_key = "redis-shield::test_key_new";
+
+        let _: () = redis::cmd(super::REDIS_COMMAND)
+            .arg(bucket_key)
+            .arg(1.2)
+            .arg(60)
+            .query(&mut con)
+            .unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "An error was signalled by the server: capacity is not positive integer"
+    )]
+    fn test_when_capacity_is_zero() {
+        let mut con = establish_connection();
+        let bucket_key = "redis-shield::test_key_new";
+
+        let _: () = redis::cmd(super::REDIS_COMMAND)
+            .arg(bucket_key)
+            .arg(0)
+            .arg(60)
+            .query(&mut con)
+            .unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "An error was signalled by the server: capacity is not positive integer"
+    )]
+    fn test_when_capacity_is_negative_integer() {
+        let mut con = establish_connection();
+        let bucket_key = "redis-shield::test_key_new";
+
+        let _: () = redis::cmd(super::REDIS_COMMAND)
+            .arg(bucket_key)
+            .arg(-2)
+            .arg(60)
+            .query(&mut con)
+            .unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "An error was signalled by the server: period is not positive integer"
+    )]
+    fn test_when_period_is_string() {
+        let mut con = establish_connection();
+        let bucket_key = "redis-shield::test_key_new";
+
+        let _: () = redis::cmd(super::REDIS_COMMAND)
+            .arg(bucket_key)
+            .arg(10)
+            .arg("abc")
+            .query(&mut con)
+            .unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "An error was signalled by the server: period is not positive integer"
+    )]
+    fn test_when_period_is_float() {
+        let mut con = establish_connection();
+        let bucket_key = "redis-shield::test_key_new";
+
+        let _: () = redis::cmd(super::REDIS_COMMAND)
+            .arg(bucket_key)
+            .arg(10)
+            .arg(6.0)
+            .query(&mut con)
+            .unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "An error was signalled by the server: period is not positive integer"
+    )]
+    fn test_when_period_is_zero() {
+        let mut con = establish_connection();
+        let bucket_key = "redis-shield::test_key_new";
+
+        let _: () = redis::cmd(super::REDIS_COMMAND)
+            .arg(bucket_key)
+            .arg(10)
+            .arg(0)
+            .query(&mut con)
+            .unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "An error was signalled by the server: period is not positive integer"
+    )]
+    fn test_when_period_is_negative_integer() {
+        let mut con = establish_connection();
+        let bucket_key = "redis-shield::test_key_new";
+
+        let _: () = redis::cmd(super::REDIS_COMMAND)
+            .arg(bucket_key)
+            .arg(10)
+            .arg(-4)
+            .query(&mut con)
+            .unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "An error was signalled by the server: tokens is not positive integer"
+    )]
+    fn test_when_tokens_is_string() {
+        let mut con = establish_connection();
+        let bucket_key = "redis-shield::test_key_new";
+
+        let _: () = redis::cmd(super::REDIS_COMMAND)
+            .arg(bucket_key)
+            .arg(10)
+            .arg(60)
+            .arg("abc")
+            .query(&mut con)
+            .unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "An error was signalled by the server: tokens is not positive integer"
+    )]
+    fn test_when_tokens_is_float() {
+        let mut con = establish_connection();
+        let bucket_key = "redis-shield::test_key_new";
+
+        let _: () = redis::cmd(super::REDIS_COMMAND)
+            .arg(bucket_key)
+            .arg(10)
+            .arg(60)
+            .arg(3.1)
+            .query(&mut con)
+            .unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "An error was signalled by the server: tokens is not positive integer"
+    )]
+    fn test_when_tokens_is_zero() {
+        let mut con = establish_connection();
+        let bucket_key = "redis-shield::test_key_new";
+
+        let _: () = redis::cmd(super::REDIS_COMMAND)
+            .arg(bucket_key)
+            .arg(10)
+            .arg(60)
+            .arg(0)
+            .query(&mut con)
+            .unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "An error was signalled by the server: tokens is not positive integer"
+    )]
+    fn test_when_tokens_is_negative_integer() {
+        let mut con = establish_connection();
+        let bucket_key = "redis-shield::test_key_new";
+
+        let _: () = redis::cmd(super::REDIS_COMMAND)
+            .arg(bucket_key)
+            .arg(10)
+            .arg(60)
+            .arg(-9)
+            .query(&mut con)
+            .unwrap();
     }
 
     #[test]
