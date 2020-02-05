@@ -5,20 +5,26 @@ extern crate redis_module;
 use bucket::Bucket;
 use redis_module::{parse_integer, Context, RedisError, RedisResult};
 
-/*
-    SHIELD.absorb user123 30 60 1
-        ▲           ▲      ▲  ▲ ▲
-        |           |      |  | └─── args[4] apply 1 token (default if omitted)
-        |           |      |  └───── args[3] 60 seconds
-        |           |      └──────── args[2] 30 tokens
-        |           └─────────────── args[1] key "ip-127.0.0.1"
-        └─────────────────────────── args[0] command name (provided by redis)
-*/
 const MIN_ARGS_LEN: usize = 4;
 const MAX_ARGS_LEN: usize = 5;
 const DEFAULT_TOKENS: i64 = 1;
 const REDIS_COMMAND: &str = "SHIELD.absorb";
 
+/// Entry point to `SHIELD.absorb` redis command.
+///
+/// * Accepts arguments in the following format:
+///       SHIELD.absorb user123 30 60 1
+///           ▲           ▲      ▲  ▲ ▲
+///           |           |      |  | └─── args[4] apply 1 token (default if omitted)
+///           |           |      |  └───── args[3] 60 seconds
+///           |           |      └──────── args[2] 30 tokens
+///           |           └─────────────── args[1] key "ip-127.0.0.1"
+///           └─────────────────────────── args[0] command name (provided by redis)
+///
+/// * Parses and validates them
+/// * Instantiates a bucket
+/// * Attempts to remove requested number of tokens from the bucket
+/// * Returns the result of `pour` function.
 fn redis_command(ctx: &Context, args: Vec<String>) -> RedisResult {
     if !(MIN_ARGS_LEN..=MAX_ARGS_LEN).contains(&args.len()) {
         return Err(RedisError::WrongArity);
