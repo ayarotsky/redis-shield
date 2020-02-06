@@ -1,16 +1,30 @@
 dist: trusty
-sudo: required
 env:
-  REDIS_URL=redis://127.0.0.1
-
+  global:
+    - REDIS_URL=redis://127.0.0.1
 language: rust
 cache: cargo
-rust:
-  - 1.39.0
-  - 1.40.0
-  - nightly
+
+addons:
+  apt:
+    packages:
+      - redis-server
+  homebrew:
+    packages:
+      - redis
 
 jobs:
+  include:
+    - env: TARGET=x86_64-unknown-linux-gnu
+      os: linux
+    - env: TARGET=x86_64-apple-darwin
+      os: osx
+    - env: TARGET=x86_64-unknown-linux-gnu
+      os: linux
+      rust: nightly
+    - env: TARGET=x86_64-apple-darwin
+      os: osx
+      rust: nightly
   allow_failures:
     - rust: nightly
   fast_finish: true
@@ -23,8 +37,12 @@ branches:
   only:
     - master
 
+git:
+  depth: 3
+  quiet: true
+
 before_script:
-  - cargo build
-  - sudo redis-server --loadmodule $TRAVIS_BUILD_DIR/target/debug/libredis_shield.so --daemonize yes
+  - cargo build --target $TARGET
+  - bash .travis/load_redis_module.sh
 script:
   - cargo test
