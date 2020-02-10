@@ -18,7 +18,7 @@ const REDIS_COMMAND: &str = "SHIELD.absorb";
 ///           |           |      |  | └─── args[4] apply 1 token (default if omitted)
 ///           |           |      |  └───── args[3] 60 seconds
 ///           |           |      └──────── args[2] 30 tokens
-///           |           └─────────────── args[1] key "ip-127.0.0.1"
+///           |           └─────────────── args[1] key "user123"
 ///           └─────────────────────────── args[0] command name (provided by redis)
 ///
 /// * Parses and validates them
