@@ -505,7 +505,7 @@ dependencies = [
 
 [[package]]
 name = "redis-module"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bindgen 0.52.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -522,7 +522,7 @@ version = "0.1.0"
 dependencies = [
  "num 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "redis 0.15.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "redis-module 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redis-module 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -836,7 +836,7 @@ dependencies = [
 "checksum quote 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)" = "7a6e920b65c65f10b2ae65c831a81a073a89edd28c7cce89475bff467ab4167a"
 "checksum quote 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "053a8c8bcc71fcce321828dc897a98ab9760bef03a4fc36693c231e5b3216cfe"
 "checksum redis 0.15.1 (registry+https://github.com/rust-lang/crates.io-index)" = "3eeb1fe3fc011cde97315f370bc88e4db3c23b08709a04915921e02b1d363b20"
-"checksum redis-module 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "06d514028bfbe779e0b44d48da2f24e130c630db886b2bb4d519c43c07728d27"
+"checksum redis-module 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3335bdb6bf746c889941da48ea2c3c1f6ef2be9614b26a679ab35e8618a18c9a"
 "checksum regex 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "dc220bd33bdce8f093101afe22a037b8eb0e5af33592e6a9caafff0d4cb81cbd"
 "checksum regex-syntax 0.6.12 (registry+https://github.com/rust-lang/crates.io-index)" = "11a7e20d1cce64ef2fed88b66d347f88bd9babb82845b2b858f3edbf59a4f716"
 "checksum rustc-hash 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "7540fc8b0c49f096ee9c961cda096467dce8084bec6bdca2fc83895fd9b28cb8"
