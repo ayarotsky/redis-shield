@@ -12,6 +12,7 @@ addons:
   homebrew:
     packages:
       - redis
+    update: true
 
 jobs:
   include:
