@@ -4,39 +4,31 @@
 
 Redis Shield is a loadable Redis module that implements the
 [token bucket algorithm](https://en.wikipedia.org/wiki/Token_bucket)
-to do rate limiting as a native command for Redis.
+to do rate limiting as a native command.
 
 ## Install
 
 Clone and build the project from source.
 
-```
-$ git clone https://github.com/ayarotsky/redis-shield.git
-$ cd redis-shield
-$ cargo build --release
-$ # extension will be **.dylib** instead of **.so** for Mac releases
-$ cp target/release/libredis_shield.so /path/to/modules/
-```
+    $ git clone https://github.com/ayarotsky/redis-shield.git
+    $ cd redis-shield
+    $ cargo build --release
+    $ # extension will be **.dylib** instead of **.so** for Mac releases
+    $ cp target/release/libredis_shield.so /path/to/modules/
 
 **Note that Rust 1.39.0+ is required.**
 
 Run redis-server pointing to the newly built module:
 
-```
-redis-server --loadmodule /path/to/modules/libredis_shield.so
-```
+    redis-server --loadmodule /path/to/modules/libredis_shield.so
 
 **Or** add the following to a `redis.conf` file:
 
-```
-loadmodule /path/to/modules/libredis_shield.so
-```
+    loadmodule /path/to/modules/libredis_shield.so
 
 ## Usage
 
-```
-SHIELD.absorb <key> <capacity> <period> [<tokens>]
-```
+    SHIELD.absorb <key> <capacity> <period> [<tokens>]
 
 Where `key` is a unique bucket identifier:
 
@@ -45,26 +37,22 @@ Where `key` is a unique bucket identifier:
 
 For example:
 
-```
-SHIELD.absorb ip-127.0.0.1 30 60 11
-                ▲           ▲  ▲ ▲
-                |           |  | └─── take 11 token (default is 1 if omitted)
-                |           |  └───── 60 seconds
-                |           └──────── 30 tokens
-                └──────────────────── key "ip-127.0.0.1"
-```
+    SHIELD.absorb ip-127.0.0.1 30 60 11
+                    ▲           ▲  ▲ ▲
+                    |           |  | └─── take 11 token (default is 1 if omitted)
+                    |           |  └───── 60 seconds
+                    |           └──────── 30 tokens
+                    └──────────────────── key "ip-127.0.0.1"
 
 The command responds with an the number of tokens left in the bucket.
 `-1` is returned when the bucket is overflown.
 
-```
-127.0.0.1:6379> SHIELD.absorb user123 30 60 13
-(integer) 17
-127.0.0.1:6379> SHIELD.absorb user123 30 60 13
-(integer) 4
-127.0.0.1:6379> SHIELD.absorb user123 30 60 13
-(integer) -1
-```
+    127.0.0.1:6379> SHIELD.absorb user123 30 60 13
+    (integer) 17
+    127.0.0.1:6379> SHIELD.absorb user123 30 60 13
+    (integer) 4
+    127.0.0.1:6379> SHIELD.absorb user123 30 60 13
+    (integer) -1
 
 ## License
 
