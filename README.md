@@ -6,6 +6,16 @@ Redis Shield is a loadable Redis module that implements the
 [token bucket algorithm](https://en.wikipedia.org/wiki/Token_bucket)
 to do rate limiting as a native command.
 
+## Algorithm
+
+The token bucket algorithm is based on an analogy of a fixed capacity bucket into which
+tokens are added at a fixed rate. When a request is to be checked for conformance to
+the defined limits, the bucket is inspected to see if it contains sufficient tokens
+at that time. If so, the appropriate number of tokens, e.g. equivalent to the number
+of HTTP requests, are removed, and the request is passed.
+
+The request does not conform if there are insufficient tokens in the bucket.
+
 ## Install
 
 Clone and build the project from source.

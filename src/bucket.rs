@@ -11,10 +11,10 @@ const OVERFLOWN_RESPONSE: i64 = -1;
 /// into which tokens are added at a fixed rate. When a request is to be checked
 /// for conformance to the defined limits, the bucket is inspected to see if it
 /// contains sufficient tokens at that time. If so, the appropriate number of tokens,
-/// e.g. equivalent to the length of the number of HTTP requests, are removed,
+/// e.g. equivalent to the number of HTTP requests, are removed,
 /// and the request is passed.
 ///
-/// The packet does not conform if there are insufficient tokens in the bucket,
+/// The request does not conform if there are insufficient tokens in the bucket,
 /// and the contents of the bucket are not changed.
 pub struct Bucket<'a> {
     // Unique bucket key used to store its details in redis
