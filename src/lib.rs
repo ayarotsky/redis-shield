@@ -1,36 +1,46 @@
 mod bucket;
 
-#[macro_use]
-extern crate redis_module;
 use bucket::Bucket;
-use redis_module::{parse_integer, Context, RedisError, RedisResult};
+use redis_module::{redis_module, Context, RedisError, RedisResult, RedisString};
 
 const MIN_ARGS_LEN: usize = 4;
 const MAX_ARGS_LEN: usize = 5;
 const DEFAULT_TOKENS: i64 = 1;
 const REDIS_COMMAND: &str = "SHIELD.absorb";
 
+#[cfg(not(test))]
+macro_rules! get_allocator {
+    () => {
+        redis_module::alloc::RedisAlloc
+    };
+}
+
+#[cfg(test)]
+macro_rules! get_allocator {
+    () => {
+        std::alloc::System
+    };
+}
+
 /// Entry point to `SHIELD.absorb` redis command.
 ///
 /// * Accepts arguments in the following format:
 ///       SHIELD.absorb user123 30 60 1
 ///           ▲           ▲      ▲  ▲ ▲
-///           |           |      |  | └─── args[4] apply 1 token (default if omitted)
-///           |           |      |  └───── args[3] 60 seconds
-///           |           |      └──────── args[2] 30 tokens
-///           |           └─────────────── args[1] key "user123"
+///           |           |      |  | └─── args[4] tokens: add 1 token (default if omitted)
+///           |           |      |  └───── args[3] period: 60 seconds
+///           |           |      └──────── args[2] capacity: 30 tokens
+///           |           └─────────────── args[1] key: user123
 ///           └─────────────────────────── args[0] command name (provided by redis)
 ///
 /// * Parses and validates them
 /// * Instantiates a bucket
 /// * Attempts to remove requested number of tokens from the bucket
 /// * Returns the result of `pour` function.
-fn redis_command(ctx: &Context, args: Vec<String>) -> RedisResult {
+fn redis_command(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     if !(MIN_ARGS_LEN..=MAX_ARGS_LEN).contains(&args.len()) {
         return Err(RedisError::WrongArity);
     }
-
-    ctx.auto_memory();
 
     let capacity = parse_positive_integer("capacity", &args[2])?;
     let period = parse_positive_integer("period", &args[3])?;
@@ -44,8 +54,8 @@ fn redis_command(ctx: &Context, args: Vec<String>) -> RedisResult {
     Ok(remaining_tokens.into())
 }
 
-fn parse_positive_integer(name: &str, value: &String) -> Result<i64, RedisError> {
-    match parse_integer(value) {
+fn parse_positive_integer(name: &str, value: &RedisString) -> Result<i64, RedisError> {
+    match value.parse_integer() {
         Ok(arg) if arg > 0 => Ok(arg),
         _ => Err(RedisError::String(format!(
             "ERR {} is not positive integer",
@@ -57,9 +67,10 @@ fn parse_positive_integer(name: &str, value: &String) -> Result<i64, RedisError>
 redis_module! {
     name: "SHIELD",
     version: 1,
+    allocator: (get_allocator!(), get_allocator!()),
     data_types: [],
     commands: [
-        [REDIS_COMMAND, redis_command, ""],
+        [REDIS_COMMAND, redis_command, "", 0, 0, 0],
     ],
 }
 
