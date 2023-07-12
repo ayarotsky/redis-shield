@@ -1,5 +1,5 @@
 use num::clamp;
-use redis_module::{parse_integer, Context, RedisError, RedisValue};
+use redis_module::{Context, RedisError, RedisString, RedisValue};
 use std::cmp::{max, min};
 
 const MILLS_IN_SEC: i64 = 1000;
@@ -18,14 +18,14 @@ const OVERFLOWN_RESPONSE: i64 = -1;
 /// and the contents of the bucket are not changed.
 pub struct Bucket<'a> {
     // Unique bucket key used to store its details in redis
-    pub key: &'a str,
+    pub key: &'a RedisString,
     // Maximum bucket's capacity
     pub capacity: i64,
     // Replenish period in which `capacity` number of tokens is refilled
     pub period: i64,
     // Number of tokens left in the bucket. When a bucket is created, `tokens = capacity`
     pub tokens: i64,
-    // Redis context used to perform perform redis commands
+    // Redis context used to perform redis commands
     ctx: &'a Context,
 }
 
@@ -38,7 +38,7 @@ impl<'a> Bucket<'a> {
     ///     * Adds tokens tokens refilled since the last request.
     pub fn new(
         ctx: &'a Context,
-        key: &'a str,
+        key: &'a RedisString,
         capacity: i64,
         period: i64,
     ) -> Result<Self, RedisError> {
@@ -67,7 +67,11 @@ impl<'a> Bucket<'a> {
             self.tokens -= tokens;
             self.ctx.call(
                 "PSETEX",
-                &[self.key, &self.period.to_string(), &self.tokens.to_string()],
+                &[
+                    self.key,
+                    &RedisString::create(None, self.period.to_string().as_str()),
+                    &RedisString::create(None, self.tokens.to_string().as_str()),
+                ],
             )?;
             Ok(self.tokens)
         }
@@ -84,7 +88,7 @@ impl<'a> Bucket<'a> {
         let delta = (self.period - current_ttl) as f64 / self.period as f64;
         let refilled_tokens = (delta * self.capacity as f64) as i64;
         let remaining_tokens = match self.ctx.call("GET", &[self.key])? {
-            RedisValue::SimpleString(tokens) => max(MIN_TOKENS, parse_integer(&tokens)?),
+            RedisValue::SimpleString(tokens) => max(MIN_TOKENS, tokens.parse::<i64>()?),
             _ => MIN_TOKENS,
         };
 
