@@ -1,6 +1,6 @@
 # Redis Shield
 
-![Build Status](https://github.com/ayarotsky/redis-shield/actions/workflows/code_review.yml/badge.svg?branch=main)
+![Build Status](https://github.com/ayarotsky/redis-shield/actions/workflows/code_review.yml/badge.svg?branch=main) [![codecov](https://codecov.io/gh/ayarotsky/redis-shield/branch/main/graph/badge.svg?token=ZNRA377IYS)](https://codecov.io/gh/ayarotsky/redis-shield)
 
 Redis Shield is a loadable Redis module that implements the
 [token bucket algorithm](https://en.wikipedia.org/wiki/Token_bucket)

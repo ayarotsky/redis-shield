@@ -2,9 +2,11 @@
 name = "redis-shield"
 version = "0.2.0"
 authors = ["Alex Yarotsky <yarotsky.alex@gmail.com>"]
-edition = "2018"
+edition = "2021"
 description = "Redis module that implements the token bucket algorithm to do rate limiting as a native command"
 license = "MIT"
+license-file = "LICENSE"
+readme = "README.md"
 repository = "https://github.com/ayarotsky/redis-shield"
 
 [lib]
