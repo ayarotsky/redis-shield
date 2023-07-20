@@ -103,7 +103,7 @@ mod tests {
     #[should_panic(
         expected = "An error was signalled by the server: capacity is not positive integer"
     )]
-    fn test_when_capacity_is_string() {
+    fn test_capacity_is_string() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_key_new";
 
@@ -119,7 +119,7 @@ mod tests {
     #[should_panic(
         expected = "An error was signalled by the server: capacity is not positive integer"
     )]
-    fn test_when_capacity_is_float() {
+    fn test_capacity_is_float() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_key_new";
 
@@ -135,7 +135,7 @@ mod tests {
     #[should_panic(
         expected = "An error was signalled by the server: capacity is not positive integer"
     )]
-    fn test_when_capacity_is_zero() {
+    fn test_capacity_is_zero() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_key_new";
 
@@ -151,7 +151,7 @@ mod tests {
     #[should_panic(
         expected = "An error was signalled by the server: capacity is not positive integer"
     )]
-    fn test_when_capacity_is_negative_integer() {
+    fn test_capacity_is_negative_integer() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_key_new";
 
@@ -167,7 +167,7 @@ mod tests {
     #[should_panic(
         expected = "An error was signalled by the server: period is not positive integer"
     )]
-    fn test_when_period_is_string() {
+    fn test_period_is_string() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_key_new";
 
@@ -183,7 +183,7 @@ mod tests {
     #[should_panic(
         expected = "An error was signalled by the server: period is not positive integer"
     )]
-    fn test_when_period_is_float() {
+    fn test_period_is_float() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_key_new";
 
@@ -199,7 +199,7 @@ mod tests {
     #[should_panic(
         expected = "An error was signalled by the server: period is not positive integer"
     )]
-    fn test_when_period_is_zero() {
+    fn test_period_is_zero() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_key_new";
 
@@ -215,7 +215,7 @@ mod tests {
     #[should_panic(
         expected = "An error was signalled by the server: period is not positive integer"
     )]
-    fn test_when_period_is_negative_integer() {
+    fn test_period_is_negative_integer() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_key_new";
 
@@ -231,7 +231,7 @@ mod tests {
     #[should_panic(
         expected = "An error was signalled by the server: tokens is not positive integer"
     )]
-    fn test_when_tokens_is_string() {
+    fn test_tokens_is_string() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_key_new";
 
@@ -248,7 +248,7 @@ mod tests {
     #[should_panic(
         expected = "An error was signalled by the server: tokens is not positive integer"
     )]
-    fn test_when_tokens_is_float() {
+    fn test_tokens_is_float() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_key_new";
 
@@ -265,7 +265,7 @@ mod tests {
     #[should_panic(
         expected = "An error was signalled by the server: tokens is not positive integer"
     )]
-    fn test_when_tokens_is_zero() {
+    fn test_tokens_is_zero() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_key_new";
 
@@ -282,7 +282,7 @@ mod tests {
     #[should_panic(
         expected = "An error was signalled by the server: tokens is not positive integer"
     )]
-    fn test_when_tokens_is_negative_integer() {
+    fn test_tokens_is_negative_integer() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_key_new";
 
@@ -296,7 +296,7 @@ mod tests {
     }
 
     #[test]
-    fn test_when_bucket_does_not_exist() {
+    fn test_bucket_does_not_exist() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_key_new";
 
@@ -315,7 +315,7 @@ mod tests {
     }
 
     #[test]
-    fn test_when_bucket_exist_but_has_no_associated_expire() {
+    fn test_bucket_exists_but_has_no_ttl() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_key_no_expire";
 
@@ -335,7 +335,7 @@ mod tests {
     }
 
     #[test]
-    fn test_when_multiple_tokens_requested() {
+    fn test_multiple_tokens_requested() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_key_multiple_tokens";
 
@@ -352,7 +352,7 @@ mod tests {
     }
 
     #[test]
-    fn test_when_bucket_is_overflown() {
+    fn test_bucket_is_overflown() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_key_overflown";
 

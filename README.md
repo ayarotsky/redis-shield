@@ -1,6 +1,6 @@
 # Redis Shield
 
-![Build Status](https://github.com/ayarotsky/redis-shield/actions/workflows/code_review.yml/badge.svg?branch=main) [![codecov](https://codecov.io/gh/ayarotsky/redis-shield/branch/main/graph/badge.svg?token=ZNRA377IYS)](https://codecov.io/gh/ayarotsky/redis-shield)
+![Build Status](https://github.com/ayarotsky/redis-shield/actions/workflows/code_review.yml/badge.svg?branch=main)
 
 Redis Shield is a loadable Redis module that implements the
 [token bucket algorithm](https://en.wikipedia.org/wiki/Token_bucket)
@@ -26,8 +26,6 @@ Clone and build the project from source.
     $ # extension will be **.dylib** instead of **.so** for Mac releases
     $ cp target/release/libredis_shield.so /path/to/modules/
 
-**Note that Rust 1.39.0+ is required.**
-
 Run redis-server pointing to the newly built module:
 
     redis-server --loadmodule /path/to/modules/libredis_shield.so
@@ -40,7 +38,7 @@ Run redis-server pointing to the newly built module:
 
     SHIELD.absorb <key> <capacity> <period> [<tokens>]
 
-Where `key` is a unique bucket identifier:
+Where `key` is a unique bucket identifier. Examples:
 
 * User ID
 * Request's IP address
