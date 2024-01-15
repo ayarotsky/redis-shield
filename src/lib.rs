@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server: wrong number of arguments for 'SHIELD.absorb' command"
+        expected = "An error was signalled by the server - ResponseError: wrong number of arguments for 'SHIELD.absorb' command"
     )]
     fn test_wrong_arity() {
         let mut con = establish_connection();
@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server: capacity is not positive integer"
+        expected = "An error was signalled by the server - ResponseError: capacity is not positive integer"
     )]
     fn test_capacity_is_string() {
         let mut con = establish_connection();
@@ -117,7 +117,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server: capacity is not positive integer"
+        expected = "An error was signalled by the server - ResponseError: capacity is not positive integer"
     )]
     fn test_capacity_is_float() {
         let mut con = establish_connection();
@@ -133,7 +133,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server: capacity is not positive integer"
+        expected = "An error was signalled by the server - ResponseError: capacity is not positive integer"
     )]
     fn test_capacity_is_zero() {
         let mut con = establish_connection();
@@ -149,7 +149,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server: capacity is not positive integer"
+        expected = "An error was signalled by the server - ResponseError: capacity is not positive integer"
     )]
     fn test_capacity_is_negative_integer() {
         let mut con = establish_connection();
@@ -165,7 +165,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server: period is not positive integer"
+        expected = "An error was signalled by the server - ResponseError: period is not positive integer"
     )]
     fn test_period_is_string() {
         let mut con = establish_connection();
@@ -181,7 +181,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server: period is not positive integer"
+        expected = "An error was signalled by the server - ResponseError: period is not positive integer"
     )]
     fn test_period_is_float() {
         let mut con = establish_connection();
@@ -197,7 +197,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server: period is not positive integer"
+        expected = "An error was signalled by the server - ResponseError: period is not positive integer"
     )]
     fn test_period_is_zero() {
         let mut con = establish_connection();
@@ -213,7 +213,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server: period is not positive integer"
+        expected = "An error was signalled by the server - ResponseError: period is not positive integer"
     )]
     fn test_period_is_negative_integer() {
         let mut con = establish_connection();
@@ -229,7 +229,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server: tokens is not positive integer"
+        expected = "An error was signalled by the server - ResponseError: tokens is not positive integer"
     )]
     fn test_tokens_is_string() {
         let mut con = establish_connection();
@@ -246,7 +246,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server: tokens is not positive integer"
+        expected = "An error was signalled by the server - ResponseError: tokens is not positive integer"
     )]
     fn test_tokens_is_float() {
         let mut con = establish_connection();
@@ -263,7 +263,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server: tokens is not positive integer"
+        expected = "An error was signalled by the server - ResponseError: tokens is not positive integer"
     )]
     fn test_tokens_is_zero() {
         let mut con = establish_connection();
@@ -280,7 +280,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server: tokens is not positive integer"
+        expected = "An error was signalled by the server - ResponseError: tokens is not positive integer"
     )]
     fn test_tokens_is_negative_integer() {
         let mut con = establish_connection();

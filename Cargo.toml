@@ -1,6 +1,6 @@
 [package]
 name = "redis-shield"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Alex Yarotsky <yarotsky.alex@gmail.com>"]
 edition = "2021"
 description = "Redis module that implements the token bucket algorithm to do rate limiting as a native command"
@@ -12,8 +12,8 @@ repository = "https://github.com/ayarotsky/redis-shield"
 crate-type = ["cdylib"]
 
 [dependencies]
-redis-module = "2.0"
+redis-module = "2.0.7"
 num = "0.4"
 
 [dev-dependencies]
-redis = "0.23"
+redis = "0.24"
