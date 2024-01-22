@@ -20,6 +20,7 @@ module.exports = {
                 "style",
                 "test",
                 "build",
+                "deps",
             ],
         ],
     },
