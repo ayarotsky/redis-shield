@@ -1,6 +1,6 @@
 [package]
 name = "redis-shield"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Alex Yarotsky <yarotsky.alex@gmail.com>"]
 edition = "2021"
 description = "Redis module that implements the token bucket algorithm to do rate limiting as a native command"
@@ -14,6 +14,8 @@ crate-type = ["cdylib"]
 [dependencies]
 redis-module = "2.0.7"
 num = "0.4"
+# Fix for RUSTSEC-2024-0006: Multiple issues involving quote API
+shlex = "1.3.0"
 
 [dev-dependencies]
 redis = "0.24"
