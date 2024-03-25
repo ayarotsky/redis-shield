@@ -11,7 +11,8 @@ on:
 env:
   RUST_BACKTRACE: "1"
   SCCACHE_GHA_ENABLED: "true"
-  RUSTC_WRAPPER: "sccache"
+  RUSTC_WRAPPER: sccache
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -51,6 +52,7 @@ jobs:
         with:
           components: clippy, rustfmt
           profile: minimal
+          toolchain: "1.77.0"
 
       - name: Install cargo dependencies
         run: |
