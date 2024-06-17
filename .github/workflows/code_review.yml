@@ -45,7 +45,7 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-
 
       - name: Configure sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
+        uses: mozilla-actions/sccache-action@v0.0.5
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
