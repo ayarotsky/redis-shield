@@ -52,7 +52,7 @@ jobs:
         with:
           components: clippy, rustfmt
           profile: minimal
-          toolchain: "1.77.0"
+          toolchain: "1.82.0"
 
       - name: Install cargo dependencies
         run: |
