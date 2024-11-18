@@ -27,16 +27,42 @@ jobs:
             os: ubuntu-latest
           - target: x86_64-apple-darwin
             os: macos-latest
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - uses: taiki-e/upload-rust-binary-action@v1
+
+      - name: Get the release version from the tag
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Install rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          bin: libredis_shield
-          archive: redis-shield-$tag-$target
+          cache-key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
+          components: clippy, rustfmt
           target: ${{ matrix.target }}
-          tar: unix
-          zip: windows
-          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build library
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Build archive
+        shell: bash
+        run: |
+          binary_name="libredis_shield"
+
+          if [ "${{ matrix.os }}" = "macos-latest" ]; then
+              ext="dylib"
+          else
+              ext="so"
+          fi
+
+          tar -czf "redis-shield-$VERSION-${{ matrix.target }}.tar.gz" "target/${{ matrix.target }}/release/$binary_name.$ext"
+          echo "ASSET=$dirname.tar.gz" >> $GITHUB_ENV
+
+      - name: Upload asset
+        uses: softprops/action-gh-release@v2
+        with:
+          append_body: true
+          make_latest: true
+          files: |
+            ${{ env.ASSET }}
