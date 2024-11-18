@@ -48,7 +48,7 @@ jobs:
       - name: Build archive
         shell: bash
         run: |
-          archive = "redis-shield-$VERSION-${{ matrix.target }}.tar.gz"
+          archive="redis-shield-$VERSION-${{ matrix.target }}.tar.gz"
 
           if [ "${{ matrix.os }}" = "macos-latest" ]; then
               ext="dylib"
