@@ -34,8 +34,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
-          bin: ...
-          archive: $bin-$tag-$target
+          bin: libredis_shield
+          archive: redis-shield-$tag-$target
           target: ${{ matrix.target }}
           tar: unix
           zip: windows
