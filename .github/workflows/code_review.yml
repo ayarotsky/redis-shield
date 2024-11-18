@@ -10,8 +10,6 @@ on:
 
 env:
   RUST_BACKTRACE: "1"
-  SCCACHE_GHA_ENABLED: "true"
-  RUSTC_WRAPPER: sccache
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
 concurrency:
@@ -34,31 +32,16 @@ jobs:
         with:
           redis-version: "7.x"
 
-      - name: Configure cargo cache
-        uses: actions/cache@v3
-        continue-on-error: false
-        with:
-          path: |
-            ~/.cargo/
-            ./target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
-
-      - name: Configure sccache
-        uses: mozilla-actions/sccache-action@v0.0.6
-
       - name: Install rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
+          cache-key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
           components: clippy, rustfmt
-          profile: minimal
-          toolchain: "1.82.0"
 
       - name: Install cargo dependencies
         run: |
           cargo install cargo-deny cargo-pants cargo-audit cargo-auditable
 
-      - run: cargo check
       - run: cargo clippy -- -D warnings
       - run: cargo fmt --all -- --check
       - run: cargo deny check
