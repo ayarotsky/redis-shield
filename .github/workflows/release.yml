@@ -48,7 +48,7 @@ jobs:
       - name: Build archive
         shell: bash
         run: |
-          binary_name="libredis_shield"
+          archive = "redis-shield-$VERSION-${{ matrix.target }}.tar.gz"
 
           if [ "${{ matrix.os }}" = "macos-latest" ]; then
               ext="dylib"
@@ -56,13 +56,12 @@ jobs:
               ext="so"
           fi
 
-          tar -czf "redis-shield-$VERSION-${{ matrix.target }}.tar.gz" "target/${{ matrix.target }}/release/$binary_name.$ext"
-          echo "ASSET=$dirname.tar.gz" >> $GITHUB_ENV
+          tar -czf $archive "target/${{ matrix.target }}/release/libredis_shield.$ext"
+          echo "ASSET=$archive" >> $GITHUB_ENV
 
       - name: Upload asset
         uses: softprops/action-gh-release@v2
         with:
           append_body: true
-          make_latest: true
           files: |
             ${{ env.ASSET }}
