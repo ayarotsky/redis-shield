@@ -7,3 +7,6 @@
 
 # Redis dumps
 *.rdb
+
+# Misc
+.DS_Store

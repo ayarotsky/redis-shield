@@ -56,7 +56,7 @@ jobs:
               ext="so"
           fi
 
-          tar -czf $archive "target/${{ matrix.target }}/release/libredis_shield.$ext"
+          tar -czf $archive -C "target/${{ matrix.target }}/release" "libredis_shield.$ext"
           echo "ASSET=$archive" >> $GITHUB_ENV
 
       - name: Upload asset
