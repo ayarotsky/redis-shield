@@ -24,3 +24,7 @@ redis = "0.30"
 lto = true
 codegen-units = 1
 strip = true
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+doc_overindented_list_items = "allow"

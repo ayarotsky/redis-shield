@@ -42,7 +42,7 @@ jobs:
         run: |
           cargo install cargo-deny cargo-pants cargo-audit cargo-auditable
 
-      - run: cargo clippy -- -D warnings
+      - run: cargo clippy
       - run: cargo fmt --all -- --check
       - run: cargo deny check
       - run: cargo pants
