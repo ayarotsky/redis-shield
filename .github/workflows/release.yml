@@ -20,12 +20,17 @@ jobs:
 
   upload-assets:
     needs: create-release
+    timeout-minutes: 30
     strategy:
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
           - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: aarch64-apple-darwin
             os: macos-latest
     runs-on: ${{ matrix.os }}
     steps:
@@ -42,15 +47,18 @@ jobs:
           components: clippy, rustfmt
           target: ${{ matrix.target }}
 
+      - name: Install cargo-auditable
+        run: cargo install cargo-auditable
+
       - name: Build library
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo auditable build --release --target ${{ matrix.target }}
 
       - name: Build archive
         shell: bash
         run: |
           archive="redis-shield-$VERSION-${{ matrix.target }}.tar.gz"
 
-          if [ "${{ matrix.os }}" = "macos-latest" ]; then
+          if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
               ext="dylib"
           else
               ext="so"
@@ -59,9 +67,15 @@ jobs:
           tar -czf $archive -C "target/${{ matrix.target }}/release" "libredis_shield.$ext"
           echo "ASSET=$archive" >> $GITHUB_ENV
 
+      - name: Generate checksums
+        shell: bash
+        run: |
+          shasum -a 256 ${{ env.ASSET }} > ${{ env.ASSET }}.sha256
+
       - name: Upload asset
         uses: softprops/action-gh-release@v2
         with:
           append_body: true
           files: |
             ${{ env.ASSET }}
+            ${{ env.ASSET }}.sha256

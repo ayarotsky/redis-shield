@@ -38,14 +38,23 @@ jobs:
           cache-key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
           components: clippy, rustfmt
 
+      - name: Cache cargo tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin
+          key: cargo-tools-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
       - name: Install cargo dependencies
         run: |
           cargo install cargo-deny cargo-pants cargo-audit cargo-auditable
 
-      - run: cargo clippy
-      - run: cargo fmt --all -- --check
-      - run: cargo deny check
-      - run: cargo pants
+      - name: Run cargo checks
+        run: |
+          cargo clippy &
+          cargo fmt --all -- --check &
+          cargo deny check &
+          wait
+          cargo pants
 
       - name: Build SHIELD module
         run: cargo auditable build --target x86_64-unknown-linux-gnu
@@ -55,15 +64,19 @@ jobs:
           rm -rf ~/.cargo/advisory-db
           cargo audit
 
-      - name: Run tests
-        env:
-          REDIS_URL: redis://127.0.0.1:34567/1
+      - name: Start Redis with SHIELD module
         run: |
           redis-server \
             --port 34567 \
             --loadmodule target/x86_64-unknown-linux-gnu/debug/libredis_shield.so \
             --daemonize yes
-          cargo test
+          sleep 2
+          redis-cli -p 34567 ping
+
+      - name: Run tests
+        env:
+          REDIS_URL: redis://127.0.0.1:34567/1
+        run: cargo test --quiet
 
   commitlint:
     runs-on: ubuntu-latest
