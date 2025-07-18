@@ -1,9 +1,9 @@
 [package]
 name = "redis-shield"
-version = "0.4.2"
+version = "1.0.0"
 authors = ["Alex Yarotsky <yarotsky.alex@gmail.com>"]
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.80"
 description = "Redis module that implements the token bucket algorithm to do rate limiting as a native command"
 license = "MIT"
 readme = "README.md"
