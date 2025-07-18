@@ -46,7 +46,14 @@ jobs:
 
       - name: Install cargo dependencies
         run: |
-          cargo install cargo-deny cargo-pants cargo-audit cargo-auditable
+          for crate in cargo-deny cargo-pants cargo-audit cargo-auditable; do
+            if ! command -v "$crate" >/dev/null 2>&1; then
+              echo "Installing $crate..."
+              cargo install --quiet "$crate"
+            else
+              echo "$crate already installed, skipping."
+            fi
+          done
 
       - name: Run cargo checks
         run: |
