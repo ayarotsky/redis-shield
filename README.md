@@ -52,7 +52,7 @@ For example:
                     |           └──────── 30 tokens
                     └──────────────────── key "ip-127.0.0.1"
 
-The command responds with an the number of tokens left in the bucket.
+The command responds with the number of tokens left in the bucket.
 `-1` is returned when the bucket is overflown.
 
     127.0.0.1:6379> SHIELD.absorb user123 30 60 13
