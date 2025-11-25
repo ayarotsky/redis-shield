@@ -173,10 +173,11 @@ jobs:
           echo ""
           echo "Cluster Slots:"
           docker exec redis-node-1 redis-cli CLUSTER SLOTS
+          echo ""
+          echo "Cluster Info:"
+          docker exec redis-node-1 redis-cli CLUSTER INFO
 
-      - name: Run cluster integration tests
-        env:
-          REDIS_CLUSTER_URLS: redis://127.0.0.1:7001,redis://127.0.0.1:7002,redis://127.0.0.1:7003
+      - name: Test cluster connectivity from host
         run: |
           # Verify ports are accessible from host
           echo "Testing connectivity to cluster nodes..."
@@ -188,7 +189,19 @@ jobs:
             }
           done
           echo "All ports accessible!"
+          
+          # Test cluster commands from host
+          echo ""
+          echo "Testing CLUSTER NODES from host:"
+          redis-cli -p 7001 CLUSTER NODES
+          echo ""
+          echo "Testing CLUSTER SLOTS from host:"
+          redis-cli -p 7001 CLUSTER SLOTS
 
+      - name: Run cluster integration tests
+        env:
+          REDIS_CLUSTER_URLS: redis://127.0.0.1:7001,redis://127.0.0.1:7002,redis://127.0.0.1:7003
+        run: |
           cargo test --features cluster-tests -- --nocapture test_cluster
 
       - name: Manual smoke test
