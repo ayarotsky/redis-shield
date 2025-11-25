@@ -6,8 +6,8 @@ cargo build --release
 
 echo ""
 echo "🚀 Starting Redis Cluster (6 nodes: 3 masters + 3 replicas)..."
-docker-compose -f docker-compose.cluster.yml down -v 2>/dev/null || true
-docker-compose -f docker-compose.cluster.yml up -d
+docker compose -f docker-compose.cluster.yml down -v 2>/dev/null || true
+docker compose -f docker-compose.cluster.yml up -d
 
 echo ""
 echo "⏳ Waiting for cluster to initialize (30 seconds)..."
@@ -45,7 +45,7 @@ echo "  redis-cli -c -p 7001"
 echo "  > SHIELD.absorb user:test 100 60 5"
 echo ""
 echo "📝 View logs:"
-echo "  docker-compose -f docker-compose.cluster.yml logs -f"
+echo "  docker compose -f docker-compose.cluster.yml logs -f"
 echo ""
 echo "🧹 Cleanup:"
-echo "  docker-compose -f docker-compose.cluster.yml down -v"
+echo "  docker compose -f docker-compose.cluster.yml down -v"

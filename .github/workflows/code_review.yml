@@ -109,7 +109,7 @@ jobs:
           sed -i 's|./target/release/libredis_shield.so|/tmp/redis-modules/libredis_shield.so|g' docker-compose.cluster.yml
 
           # Start cluster
-          docker-compose -f docker-compose.cluster.yml up -d
+          docker compose -f docker-compose.cluster.yml up -d
 
           # Wait for cluster initialization
           echo "Waiting for cluster to initialize..."
@@ -184,7 +184,7 @@ jobs:
       - name: Cleanup cluster
         if: always()
         run: |
-          docker-compose -f docker-compose.cluster.yml down -v || true
+          docker compose -f docker-compose.cluster.yml down -v || true
 
   commitlint:
     runs-on: ubuntu-latest

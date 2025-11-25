@@ -71,7 +71,7 @@ For detailed cluster deployment guide, see [CLUSTER.md](CLUSTER.md).
 **Quick test:**
 ```bash
 # Start 6-node test cluster
-docker-compose -f docker-compose.cluster.yml up -d
+docker compose -f docker-compose.cluster.yml up -d
 
 # Run cluster tests
 REDIS_CLUSTER_URLS="redis://127.0.0.1:7001,redis://127.0.0.1:7002,redis://127.0.0.1:7003" \

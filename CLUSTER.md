@@ -13,7 +13,7 @@ cargo build --release
 ### 2. Start Test Cluster
 
 ```bash
-docker-compose -f docker-compose.cluster.yml up -d
+docker compose -f docker-compose.cluster.yml up -d
 ```
 
 This creates a 6-node cluster (3 masters + 3 replicas) with Redis Shield loaded on all nodes.
@@ -573,7 +573,7 @@ A: Not yet. v2.0 may add read-from-replica support for inspection commands.
 
 ## Next Steps
 
-1. **Test locally:** `docker-compose -f docker-compose.cluster.yml up -d`
+1. **Test locally:** `docker compose -f docker-compose.cluster.yml up -d`
 2. **Run tests:** `cargo test --test cluster_tests`
 3. **Review monitoring:** Setup alerts for cluster health
 4. **Plan deployment:** Choose cloud provider or self-managed
