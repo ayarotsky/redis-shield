@@ -91,6 +91,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Install redis
+        uses: shogo82148/actions-setup-redis@v1
+        with:
+          redis-version: "7.x"
+
       - name: Install rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
@@ -173,6 +178,17 @@ jobs:
         env:
           REDIS_CLUSTER_URLS: redis://127.0.0.1:7001,redis://127.0.0.1:7002,redis://127.0.0.1:7003
         run: |
+          # Verify ports are accessible from host
+          echo "Testing connectivity to cluster nodes..."
+          for port in 7001 7002 7003; do
+            echo -n "Port $port: "
+            redis-cli -p $port ping || {
+              echo "FAILED - cannot connect to localhost:$port"
+              exit 1
+            }
+          done
+          echo "All ports accessible!"
+
           cargo test --features cluster-tests -- --nocapture test_cluster
 
       - name: Manual smoke test
