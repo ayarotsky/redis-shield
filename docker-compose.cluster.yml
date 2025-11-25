@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   redis-cluster-init:
-    image: redis:7-alpine
+    image: redis:7
     command: >
       sh -c "
         echo 'Waiting for Redis nodes to start...' &&
@@ -29,16 +29,19 @@ services:
       - redis-cluster-net
 
   redis-node-1:
-    image: redis:7-alpine
+    image: redis:7
     container_name: redis-node-1
-    command: >
-      redis-server
-      --port 6379
-      --cluster-enabled yes
-      --cluster-config-file nodes.conf
-      --cluster-node-timeout 5000
-      --appendonly yes
-      --loadmodule /usr/lib/redis/modules/libredis_shield.so
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        apt-get update && apt-get install -y libgcc-s1 && rm -rf /var/lib/apt/lists/*
+        exec redis-server \
+          --port 6379 \
+          --cluster-enabled yes \
+          --cluster-config-file nodes.conf \
+          --cluster-node-timeout 5000 \
+          --appendonly yes \
+          --loadmodule /usr/lib/redis/modules/libredis_shield.so
     volumes:
       - ./target/release/libredis_shield.so:/usr/lib/redis/modules/libredis_shield.so:ro
       - redis-node-1-data:/data
@@ -48,16 +51,19 @@ services:
       - "7001:6379"
 
   redis-node-2:
-    image: redis:7-alpine
+    image: redis:7
     container_name: redis-node-2
-    command: >
-      redis-server
-      --port 6379
-      --cluster-enabled yes
-      --cluster-config-file nodes.conf
-      --cluster-node-timeout 5000
-      --appendonly yes
-      --loadmodule /usr/lib/redis/modules/libredis_shield.so
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        apt-get update && apt-get install -y libgcc-s1 && rm -rf /var/lib/apt/lists/*
+        exec redis-server \
+          --port 6379 \
+          --cluster-enabled yes \
+          --cluster-config-file nodes.conf \
+          --cluster-node-timeout 5000 \
+          --appendonly yes \
+          --loadmodule /usr/lib/redis/modules/libredis_shield.so
     volumes:
       - ./target/release/libredis_shield.so:/usr/lib/redis/modules/libredis_shield.so:ro
       - redis-node-2-data:/data
@@ -67,16 +73,19 @@ services:
       - "7002:6379"
 
   redis-node-3:
-    image: redis:7-alpine
+    image: redis:7
     container_name: redis-node-3
-    command: >
-      redis-server
-      --port 6379
-      --cluster-enabled yes
-      --cluster-config-file nodes.conf
-      --cluster-node-timeout 5000
-      --appendonly yes
-      --loadmodule /usr/lib/redis/modules/libredis_shield.so
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        apt-get update && apt-get install -y libgcc-s1 && rm -rf /var/lib/apt/lists/*
+        exec redis-server \
+          --port 6379 \
+          --cluster-enabled yes \
+          --cluster-config-file nodes.conf \
+          --cluster-node-timeout 5000 \
+          --appendonly yes \
+          --loadmodule /usr/lib/redis/modules/libredis_shield.so
     volumes:
       - ./target/release/libredis_shield.so:/usr/lib/redis/modules/libredis_shield.so:ro
       - redis-node-3-data:/data
@@ -86,16 +95,19 @@ services:
       - "7003:6379"
 
   redis-node-4:
-    image: redis:7-alpine
+    image: redis:7
     container_name: redis-node-4
-    command: >
-      redis-server
-      --port 6379
-      --cluster-enabled yes
-      --cluster-config-file nodes.conf
-      --cluster-node-timeout 5000
-      --appendonly yes
-      --loadmodule /usr/lib/redis/modules/libredis_shield.so
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        apt-get update && apt-get install -y libgcc-s1 && rm -rf /var/lib/apt/lists/*
+        exec redis-server \
+          --port 6379 \
+          --cluster-enabled yes \
+          --cluster-config-file nodes.conf \
+          --cluster-node-timeout 5000 \
+          --appendonly yes \
+          --loadmodule /usr/lib/redis/modules/libredis_shield.so
     volumes:
       - ./target/release/libredis_shield.so:/usr/lib/redis/modules/libredis_shield.so:ro
       - redis-node-4-data:/data
@@ -105,16 +117,19 @@ services:
       - "7004:6379"
 
   redis-node-5:
-    image: redis:7-alpine
+    image: redis:7
     container_name: redis-node-5
-    command: >
-      redis-server
-      --port 6379
-      --cluster-enabled yes
-      --cluster-config-file nodes.conf
-      --cluster-node-timeout 5000
-      --appendonly yes
-      --loadmodule /usr/lib/redis/modules/libredis_shield.so
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        apt-get update && apt-get install -y libgcc-s1 && rm -rf /var/lib/apt/lists/*
+        exec redis-server \
+          --port 6379 \
+          --cluster-enabled yes \
+          --cluster-config-file nodes.conf \
+          --cluster-node-timeout 5000 \
+          --appendonly yes \
+          --loadmodule /usr/lib/redis/modules/libredis_shield.so
     volumes:
       - ./target/release/libredis_shield.so:/usr/lib/redis/modules/libredis_shield.so:ro
       - redis-node-5-data:/data
@@ -124,16 +139,19 @@ services:
       - "7005:6379"
 
   redis-node-6:
-    image: redis:7-alpine
+    image: redis:7
     container_name: redis-node-6
-    command: >
-      redis-server
-      --port 6379
-      --cluster-enabled yes
-      --cluster-config-file nodes.conf
-      --cluster-node-timeout 5000
-      --appendonly yes
-      --loadmodule /usr/lib/redis/modules/libredis_shield.so
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        apt-get update && apt-get install -y libgcc-s1 && rm -rf /var/lib/apt/lists/*
+        exec redis-server \
+          --port 6379 \
+          --cluster-enabled yes \
+          --cluster-config-file nodes.conf \
+          --cluster-node-timeout 5000 \
+          --appendonly yes \
+          --loadmodule /usr/lib/redis/modules/libredis_shield.so
     volumes:
       - ./target/release/libredis_shield.so:/usr/lib/redis/modules/libredis_shield.so:ro
       - redis-node-6-data:/data
