@@ -101,12 +101,9 @@ jobs:
 
       - name: Start Redis Cluster
         run: |
-          # Create module directory
-          mkdir -p /tmp/redis-modules
-          cp target/x86_64-unknown-linux-gnu/release/libredis_shield.so /tmp/redis-modules/
-
-          # Update docker-compose to use correct path
-          sed -i 's|./target/release/libredis_shield.so|/tmp/redis-modules/libredis_shield.so|g' docker-compose.cluster.yml
+          # Copy module to expected location for docker-compose
+          mkdir -p target/release
+          cp target/x86_64-unknown-linux-gnu/release/libredis_shield.so target/release/
 
           # Start cluster
           docker compose -f docker-compose.cluster.yml up -d
