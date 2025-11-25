@@ -62,6 +62,22 @@ The command responds with an the number of tokens left in the bucket.
     127.0.0.1:6379> SHIELD.absorb user123 30 60 13
     (integer) -1
 
+## Redis Cluster Support
+
+Redis Shield is **fully compatible with Redis Cluster**. All operations use single-key commands, making them naturally cluster-safe.
+
+For detailed cluster deployment guide, see [CLUSTER.md](CLUSTER.md).
+
+**Quick test:**
+```bash
+# Start 6-node test cluster
+docker-compose -f docker-compose.cluster.yml up -d
+
+# Run cluster tests
+REDIS_CLUSTER_URLS="redis://127.0.0.1:7001,redis://127.0.0.1:7002,redis://127.0.0.1:7003" \
+  cargo test --features cluster-tests test_cluster
+```
+
 ## License
 
 This is free software under the terms of MIT the license (see the file

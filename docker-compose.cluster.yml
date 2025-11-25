@@ -1,0 +1,155 @@
+version: '3.8'
+
+services:
+  redis-cluster-init:
+    image: redis:7-alpine
+    command: >
+      sh -c "
+        echo 'Waiting for Redis nodes to start...' &&
+        sleep 5 &&
+        redis-cli --cluster create \
+          redis-node-1:6379 \
+          redis-node-2:6379 \
+          redis-node-3:6379 \
+          redis-node-4:6379 \
+          redis-node-5:6379 \
+          redis-node-6:6379 \
+          --cluster-replicas 1 \
+          --cluster-yes &&
+        echo 'Cluster initialized successfully'
+      "
+    depends_on:
+      - redis-node-1
+      - redis-node-2
+      - redis-node-3
+      - redis-node-4
+      - redis-node-5
+      - redis-node-6
+    networks:
+      - redis-cluster-net
+
+  redis-node-1:
+    image: redis:7-alpine
+    container_name: redis-node-1
+    command: >
+      redis-server
+      --port 6379
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --loadmodule /usr/lib/redis/modules/libredis_shield.so
+    volumes:
+      - ./target/release/libredis_shield.so:/usr/lib/redis/modules/libredis_shield.so:ro
+      - redis-node-1-data:/data
+    networks:
+      - redis-cluster-net
+    ports:
+      - "7001:6379"
+
+  redis-node-2:
+    image: redis:7-alpine
+    container_name: redis-node-2
+    command: >
+      redis-server
+      --port 6379
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --loadmodule /usr/lib/redis/modules/libredis_shield.so
+    volumes:
+      - ./target/release/libredis_shield.so:/usr/lib/redis/modules/libredis_shield.so:ro
+      - redis-node-2-data:/data
+    networks:
+      - redis-cluster-net
+    ports:
+      - "7002:6379"
+
+  redis-node-3:
+    image: redis:7-alpine
+    container_name: redis-node-3
+    command: >
+      redis-server
+      --port 6379
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --loadmodule /usr/lib/redis/modules/libredis_shield.so
+    volumes:
+      - ./target/release/libredis_shield.so:/usr/lib/redis/modules/libredis_shield.so:ro
+      - redis-node-3-data:/data
+    networks:
+      - redis-cluster-net
+    ports:
+      - "7003:6379"
+
+  redis-node-4:
+    image: redis:7-alpine
+    container_name: redis-node-4
+    command: >
+      redis-server
+      --port 6379
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --loadmodule /usr/lib/redis/modules/libredis_shield.so
+    volumes:
+      - ./target/release/libredis_shield.so:/usr/lib/redis/modules/libredis_shield.so:ro
+      - redis-node-4-data:/data
+    networks:
+      - redis-cluster-net
+    ports:
+      - "7004:6379"
+
+  redis-node-5:
+    image: redis:7-alpine
+    container_name: redis-node-5
+    command: >
+      redis-server
+      --port 6379
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --loadmodule /usr/lib/redis/modules/libredis_shield.so
+    volumes:
+      - ./target/release/libredis_shield.so:/usr/lib/redis/modules/libredis_shield.so:ro
+      - redis-node-5-data:/data
+    networks:
+      - redis-cluster-net
+    ports:
+      - "7005:6379"
+
+  redis-node-6:
+    image: redis:7-alpine
+    container_name: redis-node-6
+    command: >
+      redis-server
+      --port 6379
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --loadmodule /usr/lib/redis/modules/libredis_shield.so
+    volumes:
+      - ./target/release/libredis_shield.so:/usr/lib/redis/modules/libredis_shield.so:ro
+      - redis-node-6-data:/data
+    networks:
+      - redis-cluster-net
+    ports:
+      - "7006:6379"
+
+networks:
+  redis-cluster-net:
+    driver: bridge
+
+volumes:
+  redis-node-1-data:
+  redis-node-2-data:
+  redis-node-3-data:
+  redis-node-4-data:
+  redis-node-5-data:
+  redis-node-6-data:

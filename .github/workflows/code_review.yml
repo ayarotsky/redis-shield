@@ -85,6 +85,107 @@ jobs:
           REDIS_URL: redis://127.0.0.1:34567/1
         run: cargo test --quiet
 
+  cluster-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache-key: ${{ runner.os }}-cargo-cluster-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: Build SHIELD module (release)
+        run: cargo build --release --target x86_64-unknown-linux-gnu
+
+      - name: Start Redis Cluster
+        run: |
+          # Create module directory
+          mkdir -p /tmp/redis-modules
+          cp target/x86_64-unknown-linux-gnu/release/libredis_shield.so /tmp/redis-modules/
+
+          # Update docker-compose to use correct path
+          sed -i 's|./target/release/libredis_shield.so|/tmp/redis-modules/libredis_shield.so|g' docker-compose.cluster.yml
+
+          # Start cluster
+          docker-compose -f docker-compose.cluster.yml up -d
+
+          # Wait for cluster initialization
+          echo "Waiting for cluster to initialize..."
+          sleep 30
+
+      - name: Verify cluster health
+        run: |
+          # Check cluster state
+          docker exec redis-node-1 redis-cli CLUSTER INFO | grep cluster_state:ok || {
+            echo "Cluster not ready, waiting longer..."
+            sleep 15
+            docker exec redis-node-1 redis-cli CLUSTER INFO
+          }
+
+          # Verify SHIELD loaded on all nodes
+          for node in redis-node-1 redis-node-2 redis-node-3; do
+            echo "Checking $node..."
+            docker exec $node redis-cli MODULE LIST | grep -i shield || {
+              echo "ERROR: SHIELD not loaded on $node"
+              exit 1
+            }
+          done
+
+      - name: Show cluster topology
+        run: |
+          echo "Cluster Nodes:"
+          docker exec redis-node-1 redis-cli CLUSTER NODES
+          echo ""
+          echo "Cluster Slots:"
+          docker exec redis-node-1 redis-cli CLUSTER SLOTS
+
+      - name: Run cluster integration tests
+        env:
+          REDIS_CLUSTER_URLS: redis://127.0.0.1:7001,redis://127.0.0.1:7002,redis://127.0.0.1:7003
+        run: |
+          cargo test --features cluster-tests -- --nocapture test_cluster
+
+      - name: Manual smoke test
+        run: |
+          # Test basic operation
+          result=$(docker exec redis-node-1 redis-cli -c SHIELD.absorb test:ci 100 60 5)
+          echo "SHIELD.absorb returned: $result"
+
+          if [ "$result" != "95" ]; then
+            echo "ERROR: Expected 95, got $result"
+            exit 1
+          fi
+
+          # Test again
+          result=$(docker exec redis-node-1 redis-cli -c SHIELD.absorb test:ci 100 60 5)
+          echo "Second call returned: $result"
+
+          if [ "$result" != "90" ]; then
+            echo "ERROR: Expected 90, got $result"
+            exit 1
+          fi
+
+          echo "✅ Cluster smoke test passed!"
+
+      - name: Show cluster logs on failure
+        if: failure()
+        run: |
+          echo "=== Redis Node 1 Logs ==="
+          docker logs redis-node-1 --tail 50
+          echo ""
+          echo "=== Redis Node 2 Logs ==="
+          docker logs redis-node-2 --tail 50
+          echo ""
+          echo "=== Redis Node 3 Logs ==="
+          docker logs redis-node-3 --tail 50
+
+      - name: Cleanup cluster
+        if: always()
+        run: |
+          docker-compose -f docker-compose.cluster.yml down -v || true
+
   commitlint:
     runs-on: ubuntu-latest
     if: github.ref != 'refs/heads/main'

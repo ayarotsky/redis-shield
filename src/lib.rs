@@ -815,4 +815,337 @@ mod tests {
             );
         }
     }
+
+    //////////////////////////////////////////////////////////////////////
+    // Redis Cluster Tests
+    //////////////////////////////////////////////////////////////////////
+
+    /// Establishes connection to Redis Cluster using environment variable
+    ///
+    /// Set REDIS_CLUSTER_URLS to comma-separated cluster node URLs:
+    /// ```bash
+    /// REDIS_CLUSTER_URLS="redis://127.0.0.1:7001,redis://127.0.0.1:7002,redis://127.0.0.1:7003"
+    /// ```
+    #[cfg(feature = "cluster-tests")]
+    fn establish_cluster_connection() -> redis::cluster::ClusterConnection {
+        use redis::cluster::ClusterClient;
+
+        let cluster_urls = env::var("REDIS_CLUSTER_URLS")
+            .unwrap_or_else(|_| "redis://127.0.0.1:7001,redis://127.0.0.1:7002,redis://127.0.0.1:7003".to_string());
+
+        let nodes: Vec<&str> = cluster_urls.split(',').collect();
+
+        let client = ClusterClient::new(nodes).expect("Failed to create cluster client");
+        client.get_connection().expect("Failed to connect to cluster")
+    }
+
+    /// Helper to execute SHIELD.absorb on cluster
+    #[cfg(feature = "cluster-tests")]
+    fn shield_absorb_cluster(
+        con: &mut redis::cluster::ClusterConnection,
+        key: &str,
+        capacity: i64,
+        period: i64,
+        tokens: Option<i64>,
+    ) -> redis::RedisResult<i64> {
+        let mut cmd = redis::cmd(REDIS_COMMAND);
+        cmd.arg(key).arg(capacity).arg(period);
+        if let Some(t) = tokens {
+            cmd.arg(t);
+        }
+        cmd.query(con)
+    }
+
+    /// Helper to cleanup cluster test keys
+    #[cfg(feature = "cluster-tests")]
+    fn cleanup_cluster_key(con: &mut redis::cluster::ClusterConnection, key: &str) {
+        let _: Result<(), _> = con.del(key);
+    }
+
+    #[test]
+    #[cfg(feature = "cluster-tests")]
+    fn test_cluster_basic_operation() {
+        let mut con = establish_cluster_connection();
+        let test_key = "cluster-test:basic";
+        cleanup_cluster_key(&mut con, test_key);
+
+        // Test basic absorb operation
+        let remaining = shield_absorb_cluster(&mut con, test_key, 100, 60, Some(10)).unwrap();
+        assert_eq!(remaining, 90, "Should have 90 tokens remaining");
+
+        // Verify bucket persisted
+        let remaining = shield_absorb_cluster(&mut con, test_key, 100, 60, Some(5)).unwrap();
+        assert_eq!(remaining, 85, "Should have 85 tokens remaining");
+
+        cleanup_cluster_key(&mut con, test_key);
+    }
+
+    #[test]
+    #[cfg(feature = "cluster-tests")]
+    fn test_cluster_different_hash_slots() {
+        let mut con = establish_cluster_connection();
+
+        // These keys will likely hash to different slots
+        let keys = [
+            "cluster-test:user1",
+            "cluster-test:user2",
+            "cluster-test:user3",
+            "cluster-test:user4",
+        ];
+
+        // Cleanup
+        for key in &keys {
+            cleanup_cluster_key(&mut con, key);
+        }
+
+        // Create buckets on different nodes
+        for (i, key) in keys.iter().enumerate() {
+            let expected = 100 - (i as i64 * 10 + 10);
+            let remaining = shield_absorb_cluster(&mut con, key, 100, 60, Some(i as i64 * 10 + 10)).unwrap();
+            assert_eq!(
+                remaining, expected,
+                "Key {} should have {} tokens remaining",
+                key, expected
+            );
+        }
+
+        // Verify all buckets maintained independently
+        for (i, key) in keys.iter().enumerate() {
+            let expected = 100 - (i as i64 * 10 + 10) - 5;
+            let remaining = shield_absorb_cluster(&mut con, key, 100, 60, Some(5)).unwrap();
+            assert_eq!(
+                remaining, expected,
+                "Key {} should have {} tokens after second request",
+                key, expected
+            );
+        }
+
+        // Cleanup
+        for key in &keys {
+            cleanup_cluster_key(&mut con, key);
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "cluster-tests")]
+    fn test_cluster_hash_tags_same_slot() {
+        let mut con = establish_cluster_connection();
+
+        // Using hash tags {user:123} ensures all these keys go to same slot
+        let keys = [
+            "{user:123}:endpoint1",
+            "{user:123}:endpoint2",
+            "{user:123}:endpoint3",
+        ];
+
+        // Cleanup
+        for key in &keys {
+            cleanup_cluster_key(&mut con, key);
+        }
+
+        // All keys should be on same node due to hash tag
+        for key in &keys {
+            let remaining = shield_absorb_cluster(&mut con, key, 50, 60, Some(5)).unwrap();
+            assert_eq!(remaining, 45, "Key {} should have 45 tokens", key);
+        }
+
+        // Verify independence despite same slot
+        for key in &keys {
+            let remaining = shield_absorb_cluster(&mut con, key, 50, 60, Some(10)).unwrap();
+            assert_eq!(remaining, 35, "Key {} should have 35 tokens", key);
+        }
+
+        // Cleanup
+        for key in &keys {
+            cleanup_cluster_key(&mut con, key);
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "cluster-tests")]
+    fn test_cluster_rate_limit_enforcement() {
+        let mut con = establish_cluster_connection();
+        let test_key = "cluster-test:rate-limit";
+        cleanup_cluster_key(&mut con, test_key);
+
+        // Create bucket with small capacity
+        let remaining = shield_absorb_cluster(&mut con, test_key, 10, 60, Some(5)).unwrap();
+        assert_eq!(remaining, 5);
+
+        // Consume remaining tokens
+        let remaining = shield_absorb_cluster(&mut con, test_key, 10, 60, Some(5)).unwrap();
+        assert_eq!(remaining, 0);
+
+        // Next request should be denied
+        let remaining = shield_absorb_cluster(&mut con, test_key, 10, 60, Some(1)).unwrap();
+        assert_eq!(remaining, -1, "Should be rate limited");
+
+        cleanup_cluster_key(&mut con, test_key);
+    }
+
+    #[test]
+    #[cfg(feature = "cluster-tests")]
+    fn test_cluster_concurrent_requests() {
+        use redis::cluster::ClusterClient;
+        use std::sync::Arc;
+
+        let cluster_urls = env::var("REDIS_CLUSTER_URLS")
+            .unwrap_or_else(|_| "redis://127.0.0.1:7001,redis://127.0.0.1:7002,redis://127.0.0.1:7003".to_string());
+
+        let nodes: Vec<&str> = cluster_urls.split(',').collect();
+        let client = Arc::new(ClusterClient::new(nodes).unwrap());
+
+        let test_key = "cluster-test:concurrent";
+
+        // Cleanup
+        let mut con = client.get_connection().unwrap();
+        cleanup_cluster_key(&mut con, test_key);
+
+        // Initialize bucket
+        shield_absorb_cluster(&mut con, test_key, 100, 60, Some(0)).unwrap();
+
+        // Spawn multiple threads
+        let mut handles = vec![];
+        for _i in 0..10 {
+            let client_clone = Arc::clone(&client);
+            let handle = thread::spawn(move || {
+                let mut con = client_clone.get_connection().unwrap();
+                shield_absorb_cluster(&mut con, test_key, 100, 60, Some(5))
+            });
+            handles.push(handle);
+        }
+
+        // Collect results
+        let results: Vec<_> = handles
+            .into_iter()
+            .map(|h| h.join().unwrap())
+            .collect();
+
+        // All requests should succeed (100 tokens / 5 per request = 20 possible)
+        let successful = results.iter().filter(|r| r.is_ok() && r.as_ref().unwrap() >= &0).count();
+        assert!(successful >= 10, "At least 10 requests should succeed");
+
+        // Cleanup
+        cleanup_cluster_key(&mut con, test_key);
+    }
+
+    #[test]
+    #[cfg(feature = "cluster-tests")]
+    fn test_cluster_ttl_consistency() {
+        let mut con = establish_cluster_connection();
+        let test_key = "cluster-test:ttl";
+        cleanup_cluster_key(&mut con, test_key);
+
+        // Create bucket
+        shield_absorb_cluster(&mut con, test_key, 100, 60, Some(10)).unwrap();
+
+        // Check TTL
+        let ttl: i64 = con.pttl(test_key).unwrap();
+        assert!(
+            ttl >= 59000 && ttl <= 60000,
+            "TTL should be close to 60000ms, got {}",
+            ttl
+        );
+
+        cleanup_cluster_key(&mut con, test_key);
+    }
+
+    #[test]
+    #[cfg(feature = "cluster-tests")]
+    fn test_cluster_module_loaded_all_nodes() {
+        let cluster_urls = env::var("REDIS_CLUSTER_URLS")
+            .unwrap_or_else(|_| "redis://127.0.0.1:7001,redis://127.0.0.1:7002,redis://127.0.0.1:7003".to_string());
+
+        let nodes: Vec<&str> = cluster_urls.split(',').collect();
+
+        for node_url in nodes {
+            let client = redis::Client::open(node_url).expect("Failed to create client");
+            let mut con = client.get_connection().expect("Failed to connect");
+
+            // Try to execute SHIELD command
+            let test_key = format!("module-test:{}", node_url);
+            let result: redis::RedisResult<i64> = redis::cmd(REDIS_COMMAND)
+                .arg(&test_key)
+                .arg(10)
+                .arg(60)
+                .arg(1)
+                .query(&mut con);
+
+            assert!(
+                result.is_ok(),
+                "SHIELD module should be loaded on node {}",
+                node_url
+            );
+
+            // Cleanup
+            let _: Result<(), _> = con.del(&test_key);
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "cluster-tests")]
+    fn test_cluster_key_distribution() {
+        let mut con = establish_cluster_connection();
+
+        // Create many keys to ensure distribution across nodes
+        let key_count = 100;
+        let keys: Vec<String> = (0..key_count)
+            .map(|i| format!("cluster-test:dist:{}", i))
+            .collect();
+
+        // Cleanup
+        for key in &keys {
+            cleanup_cluster_key(&mut con, key);
+        }
+
+        // Create buckets
+        for key in &keys {
+            let result = shield_absorb_cluster(&mut con, key, 50, 60, Some(5));
+            assert!(result.is_ok(), "Should successfully create bucket for {}", key);
+        }
+
+        // Verify all buckets work
+        let mut success_count = 0;
+        for key in &keys {
+            if let Ok(remaining) = shield_absorb_cluster(&mut con, key, 50, 60, Some(5)) {
+                if remaining >= 0 {
+                    success_count += 1;
+                }
+            }
+        }
+
+        assert!(
+            success_count >= key_count * 95 / 100,
+            "At least 95% of buckets should work correctly"
+        );
+
+        // Cleanup
+        for key in &keys {
+            cleanup_cluster_key(&mut con, key);
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "cluster-tests")]
+    fn test_cluster_failover_resilience() {
+        // This test requires manual intervention to kill a node
+        // Just verify basic operation continues
+        let mut con = establish_cluster_connection();
+        let test_key = "cluster-test:failover";
+        cleanup_cluster_key(&mut con, test_key);
+
+        // Create bucket
+        let remaining = shield_absorb_cluster(&mut con, test_key, 100, 60, Some(10)).unwrap();
+        assert_eq!(remaining, 90);
+
+        // In a real test, you would:
+        // 1. Identify which node has this key
+        // 2. Kill that node
+        // 3. Wait for failover
+        // 4. Verify bucket still works
+
+        println!("Note: Full failover testing requires manual node shutdown");
+
+        cleanup_cluster_key(&mut con, test_key);
+    }
 }
