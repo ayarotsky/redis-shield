@@ -8,5 +8,8 @@
 # Redis dumps
 *.rdb
 
+# Criterion benchmark outputs
+/target/criterion/
+
 # Misc
 .DS_Store

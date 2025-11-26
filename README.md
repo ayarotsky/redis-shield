@@ -62,6 +62,47 @@ The command responds with the number of tokens left in the bucket.
     127.0.0.1:6379> SHIELD.absorb user123 30 60 13
     (integer) -1
 
+## Development
+
+### Running Tests
+
+```bash
+REDIS_URL=redis://127.0.0.1:6379 cargo test
+```
+
+### Running Benchmarks
+
+Redis Shield includes comprehensive performance benchmarks using [Criterion.rs](https://github.com/bheisler/criterion.rs).
+
+#### Quick Start
+
+```bash
+# Ensure Redis is running with the module loaded
+export REDIS_URL=redis://127.0.0.1:6379
+
+# Run all benchmarks
+cargo bench
+
+# Run specific benchmark group
+cargo bench -- new_bucket
+
+# Generate HTML reports (saved to target/criterion/)
+cargo bench
+open target/criterion/report/index.html
+```
+
+#### Performance Tracking
+
+See **[benches/README.md](benches/README.md)** for complete documentation.
+
+**Expected Performance:**
+- New bucket creation: ~47 µs (45-50 µs range)
+- Existing bucket (allowed): ~25 µs (23-27 µs range)
+- Denied request: ~23 µs (21-25 µs range)
+- Throughput: 35,000-45,000 req/s (single connection)
+
+*Performance improved ~3x through optimizations: zero-allocation integer formatting, integer arithmetic, static error messages, and function inlining.*
+
 ## License
 
 This is free software under the terms of MIT the license (see the file

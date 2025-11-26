@@ -58,9 +58,10 @@ macro_rules! get_allocator {
 /// SHIELD.absorb user123 30 60     # Remove 1 token from bucket with capacity 30, period 60s
 /// SHIELD.absorb user123 30 60 5   # Remove 5 tokens from the same bucket
 /// ```
+#[inline]
 fn redis_command(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     // Validate argument count
-    if !(MIN_ARGS_LEN..=MAX_ARGS_LEN).contains(&args.len()) {
+    if !matches!(args.len(), MIN_ARGS_LEN..=MAX_ARGS_LEN) {
         return Err(RedisError::WrongArity);
     }
 
@@ -93,6 +94,7 @@ fn redis_command(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
 /// Returns a RedisError with a descriptive message if:
 /// - The value cannot be parsed as an integer
 /// - The parsed integer is not positive (≤ 0)
+#[inline]
 fn parse_positive_integer(name: &str, value: &RedisString) -> Result<i64, RedisError> {
     match value.parse_integer() {
         Ok(arg) if arg > 0 => Ok(arg),
@@ -814,5 +816,158 @@ mod tests {
                 expected_tokens
             );
         }
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "An error was signalled by the server - ResponseError: period value too large"
+    )]
+    fn test_period_overflow() {
+        let mut con = establish_connection();
+        let bucket_key = "redis-shield::test_period_overflow";
+        cleanup_key(&mut con, bucket_key);
+
+        // Period that would overflow when multiplied by 1000
+        // i64::MAX / 1000 = 9,223,372,036,854,775
+        // Any value larger than this should trigger overflow protection
+        let overflow_period = i64::MAX / 1000 + 1;
+
+        let _ = shield_absorb(&mut con, bucket_key, 10, overflow_period, None).unwrap();
+    }
+
+    #[test]
+    fn test_maximum_safe_period() {
+        let mut con = establish_connection();
+        let bucket_key = "redis-shield::test_max_safe_period";
+        cleanup_key(&mut con, bucket_key);
+
+        // Use a very large period that tests overflow protection without exceeding Redis limits
+        // Redis internally converts TTL to absolute timestamp (current_time_ms + ttl_ms)
+        // Using 100 years = 3,153,600,000 seconds is large enough to test our overflow checks
+        // while staying well within Redis's timestamp limits (which go to year 9999+)
+        let max_safe_period = 3_153_600_000; // 100 years in seconds
+
+        let remaining_tokens =
+            shield_absorb(&mut con, bucket_key, 10, max_safe_period, None).unwrap();
+        assert_eq!(
+            remaining_tokens, 9,
+            "Maximum safe period should work correctly"
+        );
+    }
+
+    #[test]
+    fn test_large_capacity_no_overflow() {
+        let mut con = establish_connection();
+        let bucket_key = "redis-shield::test_large_capacity_no_overflow";
+        cleanup_key(&mut con, bucket_key);
+
+        // Use a very large capacity to test saturating_add behavior
+        // We can't use i64::MAX because capacity * elapsed_fraction might overflow in f64
+        // But we can use a large enough value to verify tokens don't go negative
+        let large_capacity = i64::MAX / 2;
+        let tokens_to_consume = 1000;
+
+        let remaining_tokens = shield_absorb(
+            &mut con,
+            bucket_key,
+            large_capacity,
+            TEST_PERIOD,
+            Some(tokens_to_consume),
+        )
+        .unwrap();
+
+        // Verify tokens are positive and correctly calculated
+        assert!(
+            remaining_tokens >= 0,
+            "Tokens should never be negative, got {}",
+            remaining_tokens
+        );
+        assert_eq!(
+            remaining_tokens,
+            large_capacity - tokens_to_consume,
+            "Token calculation should be correct"
+        );
+    }
+
+    #[test]
+    fn test_extreme_capacity_values() {
+        let mut con = establish_connection();
+        let bucket_key = "redis-shield::test_extreme_capacity";
+        cleanup_key(&mut con, bucket_key);
+
+        // Test with extremely large capacity
+        let extreme_capacity = 1_000_000_000_000_i64; // 1 trillion
+
+        // Create bucket and consume some tokens
+        let remaining_tokens =
+            shield_absorb(&mut con, bucket_key, extreme_capacity, 60, Some(1000)).unwrap();
+
+        assert!(
+            remaining_tokens >= 0,
+            "Tokens should never be negative with extreme capacity"
+        );
+        assert_eq!(
+            remaining_tokens,
+            extreme_capacity - 1000,
+            "Should handle extreme capacity correctly"
+        );
+
+        // Verify multiple operations work correctly
+        // Note: With large capacity and 60s period, even microseconds of elapsed time
+        // will refill tokens. So we check range instead of exact value.
+        let remaining_tokens =
+            shield_absorb(&mut con, bucket_key, extreme_capacity, 60, Some(5000)).unwrap();
+
+        assert!(remaining_tokens >= 0, "Tokens should remain positive");
+        // Should be close to (extreme_capacity - 1000 - 5000), allowing for refill
+        let expected_min = extreme_capacity - 1000 - 5000;
+        let expected_max = extreme_capacity - 5000; // Max if fully refilled before second call
+        assert!(
+            remaining_tokens >= expected_min && remaining_tokens <= expected_max,
+            "Sequential operations should work correctly, expected between {} and {}, got {}",
+            expected_min,
+            expected_max,
+            remaining_tokens
+        );
+    }
+
+    #[test]
+    fn test_token_refill_with_large_values() {
+        let mut con = establish_connection();
+        let bucket_key = "redis-shield::test_refill_large_values";
+        cleanup_key(&mut con, bucket_key);
+
+        // Use a large capacity with a short period to test refill calculation
+        let large_capacity = 10_000_000_i64;
+        let short_period = 2; // 2 seconds
+
+        // Consume some tokens
+        let remaining_tokens =
+            shield_absorb(&mut con, bucket_key, large_capacity, short_period, Some(5_000_000))
+                .unwrap();
+        assert_eq!(
+            remaining_tokens,
+            large_capacity - 5_000_000,
+            "Initial consumption should be correct"
+        );
+
+        // Wait for refill
+        thread::sleep(time::Duration::from_secs(short_period as u64 + 1));
+
+        // Should be fully refilled (or very close)
+        let remaining_tokens =
+            shield_absorb(&mut con, bucket_key, large_capacity, short_period, Some(1_000_000))
+                .unwrap();
+
+        // After full refill and consuming 1M, should have large_capacity - 1M
+        assert!(
+            remaining_tokens >= large_capacity - 1_000_000 - 100_000,
+            "Should refill correctly with large capacity, got {}",
+            remaining_tokens
+        );
+        assert!(
+            remaining_tokens >= 0,
+            "Tokens should never be negative after refill"
+        );
     }
 }
