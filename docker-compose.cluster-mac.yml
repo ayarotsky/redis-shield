@@ -2,128 +2,146 @@ services:
   redis-node-1:
     image: redis:7
     container_name: redis-node-1
-    network_mode: host
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         apt-get update && apt-get install -y libgcc-s1 && rm -rf /var/lib/apt/lists/*
         exec redis-server \
-          --port 7001 \
+          --port 6379 \
           --cluster-enabled yes \
-          --cluster-config-file /data/nodes-7001.conf \
+          --cluster-config-file /data/nodes.conf \
           --cluster-node-timeout 5000 \
+          --cluster-announce-ip host.docker.internal \
+          --cluster-announce-port 7001 \
+          --cluster-announce-bus-port 17001 \
           --appendonly yes \
-          --appendfilename appendonly-7001.aof \
-          --dbfilename dump-7001.rdb \
           --loadmodule /usr/lib/redis/modules/libredis_shield.so
     volumes:
       - ./target/release/libredis_shield.so:/usr/lib/redis/modules/libredis_shield.so:ro
       - redis-node-1-data:/data
+    ports:
+      - "7001:6379"
+      - "17001:16379"
 
   redis-node-2:
     image: redis:7
     container_name: redis-node-2
-    network_mode: host
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         apt-get update && apt-get install -y libgcc-s1 && rm -rf /var/lib/apt/lists/*
         exec redis-server \
-          --port 7002 \
+          --port 6379 \
           --cluster-enabled yes \
-          --cluster-config-file /data/nodes-7002.conf \
+          --cluster-config-file /data/nodes.conf \
           --cluster-node-timeout 5000 \
+          --cluster-announce-ip host.docker.internal \
+          --cluster-announce-port 7002 \
+          --cluster-announce-bus-port 17002 \
           --appendonly yes \
-          --appendfilename appendonly-7002.aof \
-          --dbfilename dump-7002.rdb \
           --loadmodule /usr/lib/redis/modules/libredis_shield.so
     volumes:
       - ./target/release/libredis_shield.so:/usr/lib/redis/modules/libredis_shield.so:ro
       - redis-node-2-data:/data
+    ports:
+      - "7002:6379"
+      - "17002:16379"
 
   redis-node-3:
     image: redis:7
     container_name: redis-node-3
-    network_mode: host
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         apt-get update && apt-get install -y libgcc-s1 && rm -rf /var/lib/apt/lists/*
         exec redis-server \
-          --port 7003 \
+          --port 6379 \
           --cluster-enabled yes \
-          --cluster-config-file /data/nodes-7003.conf \
+          --cluster-config-file /data/nodes.conf \
           --cluster-node-timeout 5000 \
+          --cluster-announce-ip host.docker.internal \
+          --cluster-announce-port 7003 \
+          --cluster-announce-bus-port 17003 \
           --appendonly yes \
-          --appendfilename appendonly-7003.aof \
-          --dbfilename dump-7003.rdb \
           --loadmodule /usr/lib/redis/modules/libredis_shield.so
     volumes:
       - ./target/release/libredis_shield.so:/usr/lib/redis/modules/libredis_shield.so:ro
       - redis-node-3-data:/data
+    ports:
+      - "7003:6379"
+      - "17003:16379"
 
   redis-node-4:
     image: redis:7
     container_name: redis-node-4
-    network_mode: host
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         apt-get update && apt-get install -y libgcc-s1 && rm -rf /var/lib/apt/lists/*
         exec redis-server \
-          --port 7004 \
+          --port 6379 \
           --cluster-enabled yes \
-          --cluster-config-file /data/nodes-7004.conf \
+          --cluster-config-file /data/nodes.conf \
           --cluster-node-timeout 5000 \
+          --cluster-announce-ip host.docker.internal \
+          --cluster-announce-port 7004 \
+          --cluster-announce-bus-port 17004 \
           --appendonly yes \
-          --appendfilename appendonly-7004.aof \
-          --dbfilename dump-7004.rdb \
           --loadmodule /usr/lib/redis/modules/libredis_shield.so
     volumes:
       - ./target/release/libredis_shield.so:/usr/lib/redis/modules/libredis_shield.so:ro
       - redis-node-4-data:/data
+    ports:
+      - "7004:6379"
+      - "17004:16379"
 
   redis-node-5:
     image: redis:7
     container_name: redis-node-5
-    network_mode: host
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         apt-get update && apt-get install -y libgcc-s1 && rm -rf /var/lib/apt/lists/*
         exec redis-server \
-          --port 7005 \
+          --port 6379 \
           --cluster-enabled yes \
-          --cluster-config-file /data/nodes-7005.conf \
+          --cluster-config-file /data/nodes.conf \
           --cluster-node-timeout 5000 \
+          --cluster-announce-ip host.docker.internal \
+          --cluster-announce-port 7005 \
+          --cluster-announce-bus-port 17005 \
           --appendonly yes \
-          --appendfilename appendonly-7005.aof \
-          --dbfilename dump-7005.rdb \
           --loadmodule /usr/lib/redis/modules/libredis_shield.so
     volumes:
       - ./target/release/libredis_shield.so:/usr/lib/redis/modules/libredis_shield.so:ro
       - redis-node-5-data:/data
+    ports:
+      - "7005:6379"
+      - "17005:16379"
 
   redis-node-6:
     image: redis:7
     container_name: redis-node-6
-    network_mode: host
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         apt-get update && apt-get install -y libgcc-s1 && rm -rf /var/lib/apt/lists/*
         exec redis-server \
-          --port 7006 \
+          --port 6379 \
           --cluster-enabled yes \
-          --cluster-config-file /data/nodes-7006.conf \
+          --cluster-config-file /data/nodes.conf \
           --cluster-node-timeout 5000 \
+          --cluster-announce-ip host.docker.internal \
+          --cluster-announce-port 7006 \
+          --cluster-announce-bus-port 17006 \
           --appendonly yes \
-          --appendfilename appendonly-7006.aof \
-          --dbfilename dump-7006.rdb \
           --loadmodule /usr/lib/redis/modules/libredis_shield.so
     volumes:
       - ./target/release/libredis_shield.so:/usr/lib/redis/modules/libredis_shield.so:ro
       - redis-node-6-data:/data
+    ports:
+      - "7006:6379"
+      - "17006:16379"
 
 volumes:
   redis-node-1-data:
