@@ -1,33 +1,6 @@
 version: '3.8'
 
 services:
-  redis-cluster-init:
-    image: redis:7
-    command: >
-      sh -c "
-        echo 'Waiting for Redis nodes to start...' &&
-        sleep 5 &&
-        redis-cli --cluster create \
-          redis-node-1:6379 \
-          redis-node-2:6379 \
-          redis-node-3:6379 \
-          redis-node-4:6379 \
-          redis-node-5:6379 \
-          redis-node-6:6379 \
-          --cluster-replicas 1 \
-          --cluster-yes &&
-        echo 'Cluster initialized successfully'
-      "
-    depends_on:
-      - redis-node-1
-      - redis-node-2
-      - redis-node-3
-      - redis-node-4
-      - redis-node-5
-      - redis-node-6
-    networks:
-      - redis-cluster-net
-
   redis-node-1:
     image: redis:7
     container_name: redis-node-1
@@ -42,6 +15,7 @@ services:
           --cluster-node-timeout 5000 \
           --cluster-announce-ip 127.0.0.1 \
           --cluster-announce-port 7001 \
+          --cluster-announce-bus-port 17001 \
           --appendonly yes \
           --loadmodule /usr/lib/redis/modules/libredis_shield.so
     volumes:
@@ -51,6 +25,7 @@ services:
       - redis-cluster-net
     ports:
       - "7001:6379"
+      - "17001:16379"
 
   redis-node-2:
     image: redis:7
@@ -66,6 +41,7 @@ services:
           --cluster-node-timeout 5000 \
           --cluster-announce-ip 127.0.0.1 \
           --cluster-announce-port 7002 \
+          --cluster-announce-bus-port 17002 \
           --appendonly yes \
           --loadmodule /usr/lib/redis/modules/libredis_shield.so
     volumes:
@@ -75,6 +51,7 @@ services:
       - redis-cluster-net
     ports:
       - "7002:6379"
+      - "17002:16379"
 
   redis-node-3:
     image: redis:7
@@ -90,6 +67,7 @@ services:
           --cluster-node-timeout 5000 \
           --cluster-announce-ip 127.0.0.1 \
           --cluster-announce-port 7003 \
+          --cluster-announce-bus-port 17003 \
           --appendonly yes \
           --loadmodule /usr/lib/redis/modules/libredis_shield.so
     volumes:
@@ -99,6 +77,7 @@ services:
       - redis-cluster-net
     ports:
       - "7003:6379"
+      - "17003:16379"
 
   redis-node-4:
     image: redis:7
@@ -114,6 +93,7 @@ services:
           --cluster-node-timeout 5000 \
           --cluster-announce-ip 127.0.0.1 \
           --cluster-announce-port 7004 \
+          --cluster-announce-bus-port 17004 \
           --appendonly yes \
           --loadmodule /usr/lib/redis/modules/libredis_shield.so
     volumes:
@@ -123,6 +103,7 @@ services:
       - redis-cluster-net
     ports:
       - "7004:6379"
+      - "17004:16379"
 
   redis-node-5:
     image: redis:7
@@ -138,6 +119,7 @@ services:
           --cluster-node-timeout 5000 \
           --cluster-announce-ip 127.0.0.1 \
           --cluster-announce-port 7005 \
+          --cluster-announce-bus-port 17005 \
           --appendonly yes \
           --loadmodule /usr/lib/redis/modules/libredis_shield.so
     volumes:
@@ -147,6 +129,7 @@ services:
       - redis-cluster-net
     ports:
       - "7005:6379"
+      - "17005:16379"
 
   redis-node-6:
     image: redis:7
@@ -162,6 +145,7 @@ services:
           --cluster-node-timeout 5000 \
           --cluster-announce-ip 127.0.0.1 \
           --cluster-announce-port 7006 \
+          --cluster-announce-bus-port 17006 \
           --appendonly yes \
           --loadmodule /usr/lib/redis/modules/libredis_shield.so
     volumes:
@@ -171,6 +155,7 @@ services:
       - redis-cluster-net
     ports:
       - "7006:6379"
+      - "17006:16379"
 
 networks:
   redis-cluster-net:

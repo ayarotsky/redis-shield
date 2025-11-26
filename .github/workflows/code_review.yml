@@ -109,38 +109,49 @@ jobs:
           # Copy module to expected location for docker-compose
           mkdir -p target/release
           cp target/x86_64-unknown-linux-gnu/release/libredis_shield.so target/release/
-          
+
           # Verify module file exists and check properties
           ls -lh target/release/libredis_shield.so
           file target/release/libredis_shield.so
 
-          # Start cluster
+          # Start cluster with fresh state
           docker compose -f docker-compose.cluster.yml up -d
 
           # Wait for containers to start
           echo "Waiting for containers to start..."
           sleep 10
-          
+
           # Check container status
           echo "Container status:"
           docker compose -f docker-compose.cluster.yml ps
-          
+
           # Show logs from first node for debugging
           echo ""
           echo "Redis node-1 logs:"
           docker logs redis-node-1 || echo "Failed to get logs"
-          
-          # Wait for cluster initialization
+
+          # Initialize cluster from host with correct external addresses
           echo ""
-          echo "Waiting for cluster to initialize..."
-          sleep 20
+          echo "Initializing cluster..."
+          redis-cli --cluster create \
+            127.0.0.1:7001 \
+            127.0.0.1:7002 \
+            127.0.0.1:7003 \
+            127.0.0.1:7004 \
+            127.0.0.1:7005 \
+            127.0.0.1:7006 \
+            --cluster-replicas 1 \
+            --cluster-yes
+
+          echo "Waiting for cluster to stabilize..."
+          sleep 5
 
       - name: Verify cluster health
         run: |
           # Check if containers are running
           echo "Checking container status..."
           docker compose -f docker-compose.cluster.yml ps
-          
+
           # Check if redis-node-1 is running
           if ! docker ps | grep -q redis-node-1; then
             echo "ERROR: redis-node-1 is not running!"
@@ -148,7 +159,7 @@ jobs:
             docker logs redis-node-1 || true
             exit 1
           fi
-          
+
           # Check cluster state
           docker exec redis-node-1 redis-cli CLUSTER INFO | grep cluster_state:ok || {
             echo "Cluster not ready, waiting longer..."
@@ -189,7 +200,7 @@ jobs:
             }
           done
           echo "All ports accessible!"
-          
+
           # Test cluster commands from host
           echo ""
           echo "Testing CLUSTER NODES from host:"

@@ -10,8 +10,24 @@ docker compose -f docker-compose.cluster.yml down -v 2>/dev/null || true
 docker compose -f docker-compose.cluster.yml up -d
 
 echo ""
-echo "⏳ Waiting for cluster to initialize (30 seconds)..."
-sleep 30
+echo "⏳ Waiting for Redis nodes to start..."
+sleep 10
+
+echo ""
+echo "🔗 Initializing cluster..."
+redis-cli --cluster create \
+  127.0.0.1:7001 \
+  127.0.0.1:7002 \
+  127.0.0.1:7003 \
+  127.0.0.1:7004 \
+  127.0.0.1:7005 \
+  127.0.0.1:7006 \
+  --cluster-replicas 1 \
+  --cluster-yes
+
+echo ""
+echo "⏳ Waiting for cluster to stabilize..."
+sleep 5
 
 echo ""
 echo "✅ Cluster Status:"
