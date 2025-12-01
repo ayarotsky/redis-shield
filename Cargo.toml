@@ -22,7 +22,7 @@ itoa = "1.0.15"
 
 [dev-dependencies]
 redis = "0.32"
-criterion = { version = "0.7", features = ["html_reports"] }
+criterion = { version = "0.8", features = ["html_reports"] }
 
 [profile.release]
 lto = true
