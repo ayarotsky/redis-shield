@@ -161,7 +161,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server - ResponseError: wrong number of arguments for 'SHIELD.absorb' command"
+        expected = "ResponseError: wrong number of arguments for 'SHIELD.absorb' command"
     )]
     fn test_wrong_arity() {
         let mut con = establish_connection();
@@ -170,7 +170,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server - ResponseError: capacity must be positive"
+        expected = "ResponseError: capacity must be positive"
     )]
     fn test_capacity_is_string() {
         let mut con = establish_connection();
@@ -187,7 +187,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server - ResponseError: capacity must be positive"
+        expected = "ResponseError: capacity must be positive"
     )]
     fn test_capacity_is_float() {
         let mut con = establish_connection();
@@ -204,7 +204,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server - ResponseError: capacity must be positive"
+        expected = "ResponseError: capacity must be positive"
     )]
     fn test_capacity_is_zero() {
         let mut con = establish_connection();
@@ -216,7 +216,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server - ResponseError: capacity must be positive"
+        expected = "ResponseError: capacity must be positive"
     )]
     fn test_capacity_is_negative() {
         let mut con = establish_connection();
@@ -228,7 +228,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server - ResponseError: period must be positive"
+        expected = "ResponseError: period must be positive"
     )]
     fn test_period_is_string() {
         let mut con = establish_connection();
@@ -245,7 +245,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server - ResponseError: period must be positive"
+        expected = "ResponseError: period must be positive"
     )]
     fn test_period_is_float() {
         let mut con = establish_connection();
@@ -262,7 +262,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server - ResponseError: period must be positive"
+        expected = "ResponseError: period must be positive"
     )]
     fn test_period_is_zero() {
         let mut con = establish_connection();
@@ -274,7 +274,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server - ResponseError: period must be positive"
+        expected = "ResponseError: period must be positive"
     )]
     fn test_period_is_negative() {
         let mut con = establish_connection();
@@ -286,7 +286,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server - ResponseError: tokens must be positive"
+        expected = "ResponseError: tokens must be positive"
     )]
     fn test_tokens_is_string() {
         let mut con = establish_connection();
@@ -304,7 +304,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server - ResponseError: tokens must be positive"
+        expected = "ResponseError: tokens must be positive"
     )]
     fn test_tokens_is_float() {
         let mut con = establish_connection();
@@ -322,7 +322,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server - ResponseError: tokens must be positive"
+        expected = "ResponseError: tokens must be positive"
     )]
     fn test_tokens_is_zero() {
         let mut con = establish_connection();
@@ -334,7 +334,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server - ResponseError: tokens must be positive"
+        expected = "ResponseError: tokens must be positive"
     )]
     fn test_tokens_is_negative() {
         let mut con = establish_connection();
@@ -631,7 +631,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server - ResponseError: invalid token count in Redis"
+        expected = "ResponseError: invalid token count in Redis"
     )]
     fn test_corrupted_redis_data() {
         let mut con = establish_connection();
@@ -646,7 +646,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "WRONGTYPE: Operation against a key holding the wrong kind of value")]
+    #[should_panic(expected = "\"WRONGTYPE\": Operation against a key holding the wrong kind of value")]
     fn test_redis_key_with_different_data_types() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_different_types";
@@ -820,7 +820,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "An error was signalled by the server - ResponseError: period value too large"
+        expected = "ResponseError: period value too large"
     )]
     fn test_period_overflow() {
         let mut con = establish_connection();
