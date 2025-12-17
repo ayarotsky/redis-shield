@@ -25,12 +25,12 @@ pub fn parse_command_args(args: &[RedisString]) -> Result<CommandInvocation, Red
         return Err(RedisError::WrongArity);
     }
     // Parse algorithm argument, default to "token_bucket" if not provided
-    let algorithm = parse_algorithm_arg(args)?.unwrap_or_else(|| "token_bucket".to_owned());
+    let algorithm = parse_algorithm_arg(args)?.unwrap_or("token_bucket".to_owned());
 
     // Create algorithm configuration
     let config = create_algorithm_config(algorithm, args)?;
     let tokens = match args.len() {
-        MAX_ARGS_LEN => parse_positive_integer("tokens", &args[4])?,
+        MAX_ARGS_LEN => parse_positive_integer("tokens", &args[ARG_TOKENS_INDEX])?,
         _ => DEFAULT_TOKENS,
     };
     let key = args[ARG_KEY_INDEX].clone();
@@ -43,15 +43,15 @@ pub fn parse_command_args(args: &[RedisString]) -> Result<CommandInvocation, Red
 
 #[inline]
 fn parse_algorithm_arg(args: &[RedisString]) -> Result<Option<String>, RedisError> {
-    let mut iter = args.iter().enumerate();
+    let iter = args.iter().enumerate();
 
-    while let Some((i, arg)) = iter.next() {
+    for (i, arg) in iter {
         let key = arg.try_as_str()?;
 
         if key.eq_ignore_ascii_case(ARG_ALGORITHM_FLAG) {
             let value = args
                 .get(i + 1)
-                .ok_or_else(|| RedisError::Str("ERR algorithm value missing"))?;
+                .ok_or(RedisError::Str("ERR algorithm value missing"))?;
 
             return Ok(Some(value.try_as_str()?.to_owned()));
         }
