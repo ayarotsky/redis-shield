@@ -3,7 +3,7 @@ use redis_module::{RedisError, RedisString};
 
 // Command argument constraints
 const MIN_ARGS_LEN: usize = 4;
-const MAX_ARGS_LEN: usize = 5;
+const MAX_ARGS_LEN: usize = 7;
 // Argument indices
 const ARG_KEY_INDEX: usize = 1;
 const ARG_CAPACITY_INDEX: usize = 2;
@@ -70,7 +70,7 @@ fn create_algorithm_config(
     let period = parse_positive_integer("period/window", &args[ARG_PERIOD_INDEX])?;
     match algorithm.as_str() {
         "token_bucket" => Ok(PolicyConfig::TokenBucket{capacity, period}),
-        // "leaky_bucket" => Ok(PolicyConfig::LeakyBucket{capacity, period}),
+        "leaky_bucket" => Ok(PolicyConfig::LeakyBucket{capacity, period}),
         // "fixed_window" => Ok(PolicyConfig::FixedWindow{capacity, period}),
         // "sliding_window" => Ok(PolicyConfig::SlidingWindow{capacity, period}),
         _ => Err(RedisError::String(format!("ERR unknown algorithm {}, supported are [token_bucket, leaky_bucket, fixed_window, sliding_window]", algorithm))),
