@@ -1,14 +1,9 @@
-mod bucket;
+mod command_parser;
+mod traffic_policy;
 
-use bucket::Bucket;
 use redis_module::{redis_module, Context, RedisError, RedisResult, RedisString};
 
-// Command argument constraints
-const MIN_ARGS_LEN: usize = 4;
-const MAX_ARGS_LEN: usize = 5;
-
-// Default values
-const DEFAULT_TOKENS: i64 = 1;
+use crate::{command_parser::parse_command_args, traffic_policy::create_executor};
 
 // Redis command configuration
 const REDIS_COMMAND: &str = "SHIELD.absorb";
@@ -43,6 +38,7 @@ macro_rules! get_allocator {
 /// * `capacity` - Maximum number of tokens the bucket can hold (must be positive)
 /// * `period` - Time period in seconds for bucket refill (must be positive)
 /// * `tokens` - Number of tokens to consume (optional, defaults to 1, must be positive)
+/// * `algorithm` - Rate limiting algorithm to use (optional, defaults to token_bucket, supported: token_bucket, leaky_bucket, fixed_window, sliding_window)
 ///
 /// # Returns
 /// * `tokens_remaining` - Number of tokens left in the bucket after consumption
@@ -60,46 +56,10 @@ macro_rules! get_allocator {
 /// ```
 #[inline]
 fn redis_command(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
-    // Validate argument count
-    if !matches!(args.len(), MIN_ARGS_LEN..=MAX_ARGS_LEN) {
-        return Err(RedisError::WrongArity);
-    }
-
-    // Parse and validate arguments
-    let capacity = parse_positive_integer("capacity", &args[2])?;
-    let period = parse_positive_integer("period", &args[3])?;
-    let tokens = match args.len() {
-        MAX_ARGS_LEN => parse_positive_integer("tokens", &args[4])?,
-        _ => DEFAULT_TOKENS,
-    };
-
-    // Create bucket and attempt to consume tokens
-    let mut bucket = Bucket::new(ctx, &args[1], capacity, period)?;
-    let remaining_tokens = bucket.pour(tokens)?;
-
-    Ok(remaining_tokens.into())
-}
-
-/// Parses a RedisString argument as a positive integer.
-///
-/// # Arguments
-/// * `name` - The name of the parameter for error messages
-/// * `value` - The RedisString value to parse
-///
-/// # Returns
-/// * `Ok(i64)` - The parsed positive integer
-/// * `Err(RedisError)` - If the value is not a positive integer
-///
-/// # Errors
-/// Returns a RedisError with a descriptive message if:
-/// - The value cannot be parsed as an integer
-/// - The parsed integer is not positive (≤ 0)
-#[inline]
-fn parse_positive_integer(name: &str, value: &RedisString) -> Result<i64, RedisError> {
-    match value.parse_integer() {
-        Ok(arg) if arg > 0 => Ok(arg),
-        _ => Err(RedisError::String(format!("ERR {} must be positive", name))),
-    }
+    let command = parse_command_args(&args)?;
+    let mut executor = create_executor(&command.cfg, ctx, &command.key)?;
+    let result = executor.execute(command.tokens)?;
+    Ok(result.into())
 }
 
 redis_module! {
@@ -119,6 +79,7 @@ redis_module! {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::command_parser::DEFAULT_TOKENS;
     extern crate redis;
     use redis::Commands;
     use std::env;
@@ -169,9 +130,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "ResponseError: capacity must be positive"
-    )]
+    #[should_panic(expected = "ResponseError: capacity must be positive")]
     fn test_capacity_is_string() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_capacity_string";
@@ -186,9 +145,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "ResponseError: capacity must be positive"
-    )]
+    #[should_panic(expected = "ResponseError: capacity must be positive")]
     fn test_capacity_is_float() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_capacity_float";
@@ -203,9 +160,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "ResponseError: capacity must be positive"
-    )]
+    #[should_panic(expected = "ResponseError: capacity must be positive")]
     fn test_capacity_is_zero() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_capacity_zero";
@@ -215,9 +170,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "ResponseError: capacity must be positive"
-    )]
+    #[should_panic(expected = "ResponseError: capacity must be positive")]
     fn test_capacity_is_negative() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_capacity_negative";
@@ -227,9 +180,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "ResponseError: period must be positive"
-    )]
+    #[should_panic(expected = "ResponseError: period must be positive")]
     fn test_period_is_string() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_period_string";
@@ -244,9 +195,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "ResponseError: period must be positive"
-    )]
+    #[should_panic(expected = "ResponseError: period must be positive")]
     fn test_period_is_float() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_period_float";
@@ -261,9 +210,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "ResponseError: period must be positive"
-    )]
+    #[should_panic(expected = "ResponseError: period must be positive")]
     fn test_period_is_zero() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_period_zero";
@@ -273,9 +220,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "ResponseError: period must be positive"
-    )]
+    #[should_panic(expected = "ResponseError: period must be positive")]
     fn test_period_is_negative() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_period_negative";
@@ -285,9 +230,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "ResponseError: tokens must be positive"
-    )]
+    #[should_panic(expected = "ResponseError: tokens must be positive")]
     fn test_tokens_is_string() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_tokens_string";
@@ -303,9 +246,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "ResponseError: tokens must be positive"
-    )]
+    #[should_panic(expected = "ResponseError: tokens must be positive")]
     fn test_tokens_is_float() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_tokens_float";
@@ -321,9 +262,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "ResponseError: tokens must be positive"
-    )]
+    #[should_panic(expected = "ResponseError: tokens must be positive")]
     fn test_tokens_is_zero() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_tokens_zero";
@@ -333,9 +272,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "ResponseError: tokens must be positive"
-    )]
+    #[should_panic(expected = "ResponseError: tokens must be positive")]
     fn test_tokens_is_negative() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_tokens_negative";
@@ -630,9 +567,7 @@ mod tests {
     // Missing test cases for better coverage
 
     #[test]
-    #[should_panic(
-        expected = "ResponseError: invalid token count in Redis"
-    )]
+    #[should_panic(expected = "ResponseError: invalid token count in Redis")]
     fn test_corrupted_redis_data() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_corrupted_data";
@@ -646,7 +581,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "\"WRONGTYPE\": Operation against a key holding the wrong kind of value")]
+    #[should_panic(
+        expected = "\"WRONGTYPE\": Operation against a key holding the wrong kind of value"
+    )]
     fn test_redis_key_with_different_data_types() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_different_types";
@@ -819,9 +756,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "ResponseError: period value too large"
-    )]
+    #[should_panic(expected = "ResponseError: period value too large")]
     fn test_period_overflow() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_period_overflow";
@@ -942,9 +877,14 @@ mod tests {
         let short_period = 2; // 2 seconds
 
         // Consume some tokens
-        let remaining_tokens =
-            shield_absorb(&mut con, bucket_key, large_capacity, short_period, Some(5_000_000))
-                .unwrap();
+        let remaining_tokens = shield_absorb(
+            &mut con,
+            bucket_key,
+            large_capacity,
+            short_period,
+            Some(5_000_000),
+        )
+        .unwrap();
         assert_eq!(
             remaining_tokens,
             large_capacity - 5_000_000,
@@ -955,9 +895,14 @@ mod tests {
         thread::sleep(time::Duration::from_secs(short_period as u64 + 1));
 
         // Should be fully refilled (or very close)
-        let remaining_tokens =
-            shield_absorb(&mut con, bucket_key, large_capacity, short_period, Some(1_000_000))
-                .unwrap();
+        let remaining_tokens = shield_absorb(
+            &mut con,
+            bucket_key,
+            large_capacity,
+            short_period,
+            Some(1_000_000),
+        )
+        .unwrap();
 
         // After full refill and consuming 1M, should have large_capacity - 1M
         assert!(
