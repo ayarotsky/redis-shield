@@ -1,7 +1,8 @@
+mod algorithm;
 mod command_parser;
 mod traffic_policy;
 
-use redis_module::{redis_module, Context, RedisError, RedisResult, RedisString};
+use redis_module::{redis_module, Context, RedisResult, RedisString};
 
 use crate::{command_parser::parse_command_args, traffic_policy::create_executor};
 
