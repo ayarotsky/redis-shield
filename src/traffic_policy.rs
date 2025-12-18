@@ -1,4 +1,4 @@
-use crate::algorithm::{LeakyBucket, TokenBucket};
+use crate::algorithm::{FixedWindow, LeakyBucket, TokenBucket};
 use redis_module::{Context, RedisError, RedisString};
 
 const TRAFFIC_POLICY_KEY_PREFIX: &str = "tp";
@@ -14,7 +14,7 @@ trait TrafficPolicySuffix {
 pub enum PolicyConfig {
     TokenBucket { capacity: i64, period: i64 },
     LeakyBucket { capacity: i64, period: i64 },
-    // FixedWindow { capacity: i64, window: i64 },
+    FixedWindow { capacity: i64, period: i64 },
     // SlidingWindow { capacity: i64, window: i64 },
 }
 
@@ -23,31 +23,32 @@ impl TrafficPolicySuffix for PolicyConfig {
         match self {
             PolicyConfig::TokenBucket { .. } => "tb",
             PolicyConfig::LeakyBucket { .. } => "lb",
-            // PolicyConfig::FixedWindow { .. } => "fw",
+            PolicyConfig::FixedWindow { .. } => "fw",
             // PolicyConfig::SlidingWindow { .. } => "sw",
         }
     }
 }
 
 pub fn create_executor<'a>(
-    cfg: &'a PolicyConfig,
+    cfg: PolicyConfig,
     ctx: &'a Context,
-    key: &'a RedisString,
+    key: RedisString,
 ) -> Result<Box<dyn TrafficPolicyExecutor + 'a>, RedisError> {
     let owned_key = Box::new(RedisString::create(
         std::ptr::NonNull::new(ctx.ctx),
         build_key(key.to_string_lossy().as_str(), cfg.suffix()),
     ));
     let key_ref: &'a RedisString = Box::leak(owned_key);
-    match *cfg {
+    match cfg {
         PolicyConfig::TokenBucket { capacity, period } => {
             Ok(Box::new(TokenBucket::new(ctx, key_ref, capacity, period)?))
         }
         PolicyConfig::LeakyBucket { capacity, period } => {
             Ok(Box::new(LeakyBucket::new(ctx, key_ref, capacity, period)?))
-        } // PolicyConfig::FixedWindow { capacity, window } => {
-          //     Ok(Box::new(FixedWindow::new(ctx, key, max_hits, window)?))
-          // }
+        }
+        PolicyConfig::FixedWindow { capacity, period } => {
+            Ok(Box::new(FixedWindow::new(ctx, key_ref, capacity, period)?))
+        } // PolicyConfig::SlidingWindow { capccity, window } => {
           // PolicyConfig::SlidingWindow { capccity, window } => {
           //     Ok(Box::new(SlidingWindow::new(ctx, key, max_hits, window)?))
           // }
