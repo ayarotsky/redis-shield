@@ -69,9 +69,9 @@ fn create_algorithm_config(
     let capacity = parse_positive_integer("capacity", &args[ARG_CAPACITY_INDEX])?;
     let period = parse_positive_integer("period/window", &args[ARG_PERIOD_INDEX])?;
     match algorithm.as_str() {
-        "token_bucket" => Ok(PolicyConfig::TokenBucket{capacity, period}),
-        "leaky_bucket" => Ok(PolicyConfig::LeakyBucket{capacity, period}),
-        // "fixed_window" => Ok(PolicyConfig::FixedWindow{capacity, period}),
+        "token_bucket" => Ok(PolicyConfig::TokenBucket { capacity, period }),
+        "leaky_bucket" => Ok(PolicyConfig::LeakyBucket { capacity, period }),
+        "fixed_window" => Ok(PolicyConfig::FixedWindow { capacity, period }),
         // "sliding_window" => Ok(PolicyConfig::SlidingWindow{capacity, period}),
         _ => Err(RedisError::String(format!("ERR unknown algorithm {}, supported are [token_bucket, leaky_bucket, fixed_window, sliding_window]", algorithm))),
     }
