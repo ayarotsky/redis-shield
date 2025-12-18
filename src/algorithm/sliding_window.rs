@@ -6,6 +6,8 @@ const MICROS_IN_MILLI: i64 = 1000;
 const MIN_COUNT: i64 = 0;
 const INSUFFICIENT_CAPACITY: i64 = -1;
 const STATE_BUFFER_LEN: usize = 96;
+// Cap TTL at 2x period, with a reasonable maximum (e.g., 1 day in ms)
+const MAX_TTL_MS: i64 = 86_400_000; // 24 hours
 
 const ERR_CAPACITY_POSITIVE: &str = "ERR capacity must be positive";
 const ERR_PERIOD_POSITIVE: &str = "ERR period must be positive";
@@ -169,7 +171,11 @@ impl<'a> SlidingWindow<'a> {
     fn persist_state(&self) -> Result<(), RedisError> {
         let mut state_buf = [0u8; STATE_BUFFER_LEN];
         let state_str = self.encode_state(&mut state_buf);
-        let ttl = self.period.saturating_mul(2).max(self.period);
+        let ttl = self
+            .period
+            .saturating_mul(2)
+            .min(MAX_TTL_MS)
+            .max(self.period);
 
         let mut ttl_buf = itoa::Buffer::new();
         let ttl_str = ttl_buf.format(ttl);
