@@ -52,18 +52,21 @@ pub fn parse_command_args(args: &[RedisString]) -> Result<CommandInvocation, Red
 
 #[inline]
 fn parse_algorithm_arg(args: &[RedisString]) -> Result<Option<String>, RedisError> {
-    let iter = args.iter().enumerate();
+    if args.len() <= ARG_PERIOD_INDEX + 1 {
+        // Not enough arguments to contain an ALGORITHM flag and value.
+        return Ok(None);
+    }
 
-    for (i, arg) in iter {
-        let key = arg.try_as_str()?;
-
+    let mut idx = ARG_PERIOD_INDEX + 1;
+    while idx < args.len() {
+        let key = args[idx].try_as_str()?;
         if key.eq_ignore_ascii_case(ARG_ALGORITHM_FLAG) {
             let value = args
-                .get(i + 1)
+                .get(idx + 1)
                 .ok_or(RedisError::Str(ERR_ALGORITHM_VALUE_MISSING))?;
-
             return Ok(Some(value.try_as_str()?.to_owned()));
         }
+        idx += 1;
     }
 
     Ok(None) // algorithm not provided
