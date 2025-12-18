@@ -97,7 +97,12 @@ impl<'a> FixedWindow<'a> {
         }
 
         self.count = match self.ctx.call("GET", &[&self.key])? {
-            RedisValue::SimpleString(value) => value
+            RedisValue::SimpleString(value) | RedisValue::BulkString(value) => value
+                .parse::<i64>()
+                .map_err(|_| RedisError::String(ERR_INVALID_COUNTER.into()))?
+                .max(MIN_COUNT),
+            RedisValue::BulkRedisString(value) => value
+                .try_as_str()?
                 .parse::<i64>()
                 .map_err(|_| RedisError::String(ERR_INVALID_COUNTER.into()))?
                 .max(MIN_COUNT),

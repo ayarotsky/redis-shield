@@ -160,7 +160,12 @@ impl<'a> TokenBucket<'a> {
 
         // Get the current token count stored in Redis
         let remaining_tokens = match self.ctx.call("GET", &[&self.key])? {
-            RedisValue::SimpleString(tokens_str) => tokens_str
+            RedisValue::SimpleString(tokens_str) | RedisValue::BulkString(tokens_str) => tokens_str
+                .parse::<i64>()
+                .map_err(|_| RedisError::String(ERR_INVALID_TOKEN_COUNT.into()))?
+                .max(MIN_TOKENS),
+            RedisValue::BulkRedisString(tokens_str) => tokens_str
+                .try_as_str()?
                 .parse::<i64>()
                 .map_err(|_| RedisError::String(ERR_INVALID_TOKEN_COUNT.into()))?
                 .max(MIN_TOKENS),
