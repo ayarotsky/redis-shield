@@ -25,7 +25,7 @@ const ERR_INVALID_TOKEN_COUNT: &str = "ERR invalid token count in Redis";
 /// and the contents of the bucket are not changed.
 pub struct TokenBucket<'a> {
     // Unique bucket key used to store its details in redis
-    pub key: &'a RedisString,
+    pub key: RedisString,
     // Maximum bucket's capacity
     pub capacity: i64,
     // Replenish period in which `capacity` number of tokens is refilled
@@ -63,7 +63,7 @@ impl<'a> TokenBucket<'a> {
     #[inline]
     pub fn new(
         ctx: &'a Context,
-        key: &'a RedisString,
+        key: RedisString,
         capacity: i64,
         period: i64,
     ) -> Result<Self, RedisError> {
@@ -125,7 +125,7 @@ impl<'a> TokenBucket<'a> {
             self.ctx.call(
                 "PSETEX",
                 &[
-                    self.key,
+                    &self.key,
                     &RedisString::create(None, period_str),
                     &RedisString::create(None, tokens_str),
                 ],
@@ -146,7 +146,7 @@ impl<'a> TokenBucket<'a> {
         // Starting with Redis 2.8 the return value of PTTL in case of error changed:
         //     - The command returns -2 if the key does not exist.
         //     - The command returns -1 if the key exists but has no associated expire.
-        let current_ttl = match self.ctx.call("PTTL", &[self.key])? {
+        let current_ttl = match self.ctx.call("PTTL", &[&self.key])? {
             RedisValue::Integer(ttl) => ttl.clamp(MIN_TTL, self.period),
             _ => MIN_TTL,
         };
@@ -159,7 +159,7 @@ impl<'a> TokenBucket<'a> {
             ((elapsed as i128 * self.capacity as i128) / self.period as i128) as i64;
 
         // Get the current token count stored in Redis
-        let remaining_tokens = match self.ctx.call("GET", &[self.key])? {
+        let remaining_tokens = match self.ctx.call("GET", &[&self.key])? {
             RedisValue::SimpleString(tokens_str) => tokens_str
                 .parse::<i64>()
                 .map_err(|_| RedisError::String(ERR_INVALID_TOKEN_COUNT.into()))?

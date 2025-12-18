@@ -34,23 +34,34 @@ pub fn create_executor<'a>(
     ctx: &'a Context,
     key: RedisString,
 ) -> Result<Box<dyn TrafficPolicyExecutor + 'a>, RedisError> {
-    let owned_key = Box::new(RedisString::create(
+    let internal_key = RedisString::create(
         std::ptr::NonNull::new(ctx.ctx),
         build_key(key.to_string_lossy().as_str(), cfg.suffix()),
-    ));
-    let key_ref: &'a RedisString = Box::leak(owned_key);
+    );
     match cfg {
-        PolicyConfig::TokenBucket { capacity, period } => {
-            Ok(Box::new(TokenBucket::new(ctx, key_ref, capacity, period)?))
-        }
-        PolicyConfig::LeakyBucket { capacity, period } => {
-            Ok(Box::new(LeakyBucket::new(ctx, key_ref, capacity, period)?))
-        }
-        PolicyConfig::FixedWindow { capacity, period } => {
-            Ok(Box::new(FixedWindow::new(ctx, key_ref, capacity, period)?))
-        }
+        PolicyConfig::TokenBucket { capacity, period } => Ok(Box::new(TokenBucket::new(
+            ctx,
+            internal_key,
+            capacity,
+            period,
+        )?)),
+        PolicyConfig::LeakyBucket { capacity, period } => Ok(Box::new(LeakyBucket::new(
+            ctx,
+            internal_key,
+            capacity,
+            period,
+        )?)),
+        PolicyConfig::FixedWindow { capacity, period } => Ok(Box::new(FixedWindow::new(
+            ctx,
+            internal_key,
+            capacity,
+            period,
+        )?)),
         PolicyConfig::SlidingWindow { capacity, period } => Ok(Box::new(SlidingWindow::new(
-            ctx, key_ref, capacity, period,
+            ctx,
+            internal_key,
+            capacity,
+            period,
         )?)),
     }
 }

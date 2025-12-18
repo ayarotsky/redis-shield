@@ -19,7 +19,7 @@ const ERR_TIME_UNAVAILABLE: &str = "ERR unable to fetch Redis time";
 /// preceding window. The effective usage interpolates between both
 /// windows based on the elapsed time to approximate a true sliding window.
 pub struct SlidingWindow<'a> {
-    pub key: &'a RedisString,
+    pub key: RedisString,
     pub capacity: i64,
     /// Window length in milliseconds.
     pub period: i64,
@@ -39,7 +39,7 @@ impl<'a> SlidingWindow<'a> {
     #[inline]
     pub fn new(
         ctx: &'a Context,
-        key: &'a RedisString,
+        key: RedisString,
         capacity: i64,
         period_sec: i64,
     ) -> Result<Self, RedisError> {
@@ -91,7 +91,7 @@ impl<'a> SlidingWindow<'a> {
 
     #[inline]
     fn load_state(&mut self, now_ms: i64) -> Result<(), RedisError> {
-        match self.ctx.call("GET", &[self.key])? {
+        match self.ctx.call("GET", &[&self.key])? {
             RedisValue::SimpleString(payload) | RedisValue::BulkString(payload) => {
                 self.apply_state(&payload, now_ms);
             }
@@ -177,7 +177,7 @@ impl<'a> SlidingWindow<'a> {
         self.ctx.call(
             "PSETEX",
             &[
-                self.key,
+                &self.key,
                 &RedisString::create(None, ttl_str),
                 &RedisString::create(None, state_str),
             ],
