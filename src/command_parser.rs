@@ -12,6 +12,15 @@ const ARG_TOKENS_INDEX: usize = 4;
 // Default values
 pub const DEFAULT_TOKENS: i64 = 1;
 const ARG_ALGORITHM_FLAG: &str = "ALGORITHM";
+const DEFAULT_ALGORITHM: &str = "token_bucket";
+
+// Error messages
+const ERR_ALGORITHM_VALUE_MISSING: &str = "ERR algorithm value missing";
+const ERR_UNKNOWN_ALGORITHM: &str =
+    "ERR unknown algorithm, supported are [token_bucket, leaky_bucket, fixed_window, sliding_window]";
+const ERR_CAPACITY_POSITIVE: &str = "ERR capacity must be positive";
+const ERR_PERIOD_POSITIVE: &str = "ERR period/window must be positive";
+const ERR_TOKENS_POSITIVE: &str = "ERR tokens must be positive";
 
 pub struct CommandInvocation {
     pub key: RedisString,
@@ -25,12 +34,12 @@ pub fn parse_command_args(args: &[RedisString]) -> Result<CommandInvocation, Red
         return Err(RedisError::WrongArity);
     }
     // Parse algorithm argument, default to "token_bucket" if not provided
-    let algorithm = parse_algorithm_arg(args)?.unwrap_or("token_bucket".to_owned());
+    let algorithm = parse_algorithm_arg(args)?.unwrap_or_else(|| DEFAULT_ALGORITHM.to_owned());
 
     // Create algorithm configuration
     let config = create_algorithm_config(algorithm, args)?;
     let tokens = match args.len() {
-        MAX_ARGS_LEN => parse_positive_integer("tokens", &args[ARG_TOKENS_INDEX])?,
+        MAX_ARGS_LEN => parse_positive_integer(&args[ARG_TOKENS_INDEX], ERR_TOKENS_POSITIVE)?,
         _ => DEFAULT_TOKENS,
     };
     let key = args[ARG_KEY_INDEX].clone();
@@ -51,7 +60,7 @@ fn parse_algorithm_arg(args: &[RedisString]) -> Result<Option<String>, RedisErro
         if key.eq_ignore_ascii_case(ARG_ALGORITHM_FLAG) {
             let value = args
                 .get(i + 1)
-                .ok_or(RedisError::Str("ERR algorithm value missing"))?;
+                .ok_or(RedisError::Str(ERR_ALGORITHM_VALUE_MISSING))?;
 
             return Ok(Some(value.try_as_str()?.to_owned()));
         }
@@ -66,14 +75,14 @@ fn create_algorithm_config(
     args: &[RedisString],
 ) -> Result<PolicyConfig, RedisError> {
     // Parse and validate arguments
-    let capacity = parse_positive_integer("capacity", &args[ARG_CAPACITY_INDEX])?;
-    let period = parse_positive_integer("period/window", &args[ARG_PERIOD_INDEX])?;
+    let capacity = parse_positive_integer(&args[ARG_CAPACITY_INDEX], ERR_CAPACITY_POSITIVE)?;
+    let period = parse_positive_integer(&args[ARG_PERIOD_INDEX], ERR_PERIOD_POSITIVE)?;
     match algorithm.as_str() {
         "token_bucket" => Ok(PolicyConfig::TokenBucket { capacity, period }),
         "leaky_bucket" => Ok(PolicyConfig::LeakyBucket { capacity, period }),
         "fixed_window" => Ok(PolicyConfig::FixedWindow { capacity, period }),
         "sliding_window" => Ok(PolicyConfig::SlidingWindow { capacity, period }),
-        _ => Err(RedisError::String(format!("ERR unknown algorithm {}, supported are [token_bucket, leaky_bucket, fixed_window, sliding_window]", algorithm))),
+        _ => Err(RedisError::Str(ERR_UNKNOWN_ALGORITHM)),
     }
 }
 
@@ -92,9 +101,9 @@ fn create_algorithm_config(
 /// - The value cannot be parsed as an integer
 /// - The parsed integer is not positive (≤ 0)
 #[inline]
-fn parse_positive_integer(name: &str, value: &RedisString) -> Result<i64, RedisError> {
+fn parse_positive_integer(value: &RedisString, err_msg: &'static str) -> Result<i64, RedisError> {
     match value.parse_integer() {
         Ok(arg) if arg > 0 => Ok(arg),
-        _ => Err(RedisError::String(format!("ERR {} must be positive", name))),
+        _ => Err(RedisError::Str(err_msg)),
     }
 }
