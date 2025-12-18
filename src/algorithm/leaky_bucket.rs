@@ -122,7 +122,12 @@ impl<'a> LeakyBucket<'a> {
 
         // Load stored level (if any)
         let stored_level = match self.ctx.call("GET", &[&self.key])? {
-            RedisValue::SimpleString(s) => s
+            RedisValue::SimpleString(s) | RedisValue::BulkString(s) => s
+                .parse::<i64>()
+                .map_err(|_| RedisError::String(ERR_INVALID_LEVEL.into()))?
+                .max(MIN_LEVEL),
+            RedisValue::BulkRedisString(s) => s
+                .try_as_str()?
                 .parse::<i64>()
                 .map_err(|_| RedisError::String(ERR_INVALID_LEVEL.into()))?
                 .max(MIN_LEVEL),
