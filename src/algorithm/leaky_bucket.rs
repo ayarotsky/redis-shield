@@ -22,7 +22,7 @@ const ERR_INVALID_LEVEL: &str = "ERR invalid bucket level in Redis";
 /// We model the leak using TTL like in token bucket: shorter remaining TTL
 /// -> more elapsed time -> more leaked units since last update.
 pub struct LeakyBucket<'a> {
-    pub key: &'a RedisString,
+    pub key: RedisString,
     pub capacity: i64,
     /// Period in milliseconds (derived from seconds input)
     pub period: i64,
@@ -45,7 +45,7 @@ impl<'a> LeakyBucket<'a> {
     #[inline]
     pub fn new(
         ctx: &'a Context,
-        key: &'a RedisString,
+        key: RedisString,
         capacity: i64,
         period_sec: i64,
     ) -> Result<Self, RedisError> {
@@ -96,7 +96,7 @@ impl<'a> LeakyBucket<'a> {
         self.ctx.call(
             "PSETEX",
             &[
-                self.key,
+                &self.key,
                 &RedisString::create(None, period_str),
                 &RedisString::create(None, level_str),
             ],
@@ -110,7 +110,7 @@ impl<'a> LeakyBucket<'a> {
     #[inline]
     fn fetch_level(&mut self) -> Result<(), RedisError> {
         // Clamp TTL into [0, period]
-        let current_ttl = match self.ctx.call("PTTL", &[self.key])? {
+        let current_ttl = match self.ctx.call("PTTL", &[&self.key])? {
             RedisValue::Integer(ttl) => ttl.clamp(MIN_TTL, self.period),
             _ => MIN_TTL,
         };
@@ -121,7 +121,7 @@ impl<'a> LeakyBucket<'a> {
         let leaked = ((elapsed as i128 * self.capacity as i128) / self.period as i128) as i64;
 
         // Load stored level (if any)
-        let stored_level = match self.ctx.call("GET", &[self.key])? {
+        let stored_level = match self.ctx.call("GET", &[&self.key])? {
             RedisValue::SimpleString(s) => s
                 .parse::<i64>()
                 .map_err(|_| RedisError::String(ERR_INVALID_LEVEL.into()))?

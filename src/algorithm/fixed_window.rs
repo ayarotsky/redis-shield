@@ -18,7 +18,7 @@ const ERR_INVALID_COUNTER: &str = "ERR invalid fixed window counter in Redis";
 /// Additional hits before the window expires are denied. We persist the count
 /// in Redis and rely on TTL expiration to reset the window.
 pub struct FixedWindow<'a> {
-    pub key: &'a RedisString,
+    pub key: RedisString,
     pub capacity: i64,
     /// Window length in milliseconds.
     pub period: i64,
@@ -38,7 +38,7 @@ impl<'a> FixedWindow<'a> {
     #[inline]
     pub fn new(
         ctx: &'a Context,
-        key: &'a RedisString,
+        key: RedisString,
         capacity: i64,
         period_sec: i64,
     ) -> Result<Self, RedisError> {
@@ -87,7 +87,7 @@ impl<'a> FixedWindow<'a> {
     #[inline]
     fn fetch_count(&mut self) -> Result<(), RedisError> {
         self.has_active_window = matches!(
-            self.ctx.call("PTTL", &[self.key])?,
+            self.ctx.call("PTTL", &[&self.key])?,
             RedisValue::Integer(ttl) if ttl > MIN_ACTIVE_TTL_MS
         );
 
@@ -96,7 +96,7 @@ impl<'a> FixedWindow<'a> {
             return Ok(());
         }
 
-        self.count = match self.ctx.call("GET", &[self.key])? {
+        self.count = match self.ctx.call("GET", &[&self.key])? {
             RedisValue::SimpleString(value) => value
                 .parse::<i64>()
                 .map_err(|_| RedisError::String(ERR_INVALID_COUNTER.into()))?
@@ -116,7 +116,7 @@ impl<'a> FixedWindow<'a> {
             let keep_ttl = RedisString::create(None, "KEEPTTL");
             self.ctx.call(
                 "SET",
-                &[self.key, &RedisString::create(None, count_str), &keep_ttl],
+                &[&self.key, &RedisString::create(None, count_str), &keep_ttl],
             )?;
         } else {
             let mut period_buf = itoa::Buffer::new();
@@ -124,7 +124,7 @@ impl<'a> FixedWindow<'a> {
             self.ctx.call(
                 "PSETEX",
                 &[
-                    self.key,
+                    &self.key,
                     &RedisString::create(None, period_str),
                     &RedisString::create(None, count_str),
                 ],
