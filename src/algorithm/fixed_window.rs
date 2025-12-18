@@ -74,11 +74,13 @@ impl<'a> FixedWindow<'a> {
             return Err(RedisError::String(ERR_HITS_POSITIVE.into()));
         }
 
-        if self.count.saturating_add(tokens) > self.capacity {
+        let next_value = self.count.saturating_add(tokens);
+
+        if next_value > self.capacity {
             return Ok(INSUFFICIENT_CAPACITY);
         }
 
-        self.count = self.count.saturating_add(tokens).min(self.capacity);
+        self.count = next_value.min(self.capacity);
         self.persist_count()?;
 
         Ok(self.capacity - self.count)
