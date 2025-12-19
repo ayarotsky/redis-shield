@@ -19,6 +19,8 @@ redis-module = "2.0.7"
 shlex = "1.3.0"
 # Fast integer-to-string conversion using stack buffers (zero allocations)
 itoa = "1.0.17"
+# Stack-allocated string buffer for hot path key construction
+arrayvec = "0.7"
 
 [dev-dependencies]
 redis = "1.0"

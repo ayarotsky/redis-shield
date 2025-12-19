@@ -80,12 +80,13 @@ impl<'a> LeakyBucket<'a> {
             return Err(RedisError::String(ERR_BURST_POSITIVE.into()));
         }
 
+        let new_level = self.level.saturating_add(burst);
         // If adding would exceed capacity, deny.
-        if self.level.saturating_add(burst) > self.capacity {
+        if new_level > self.capacity {
             return Ok(OVERFLOW);
         }
 
-        self.level = self.level.saturating_add(burst).min(self.capacity);
+        self.level = new_level.min(self.capacity);
 
         let mut period_buf = itoa::Buffer::new();
         let mut level_buf = itoa::Buffer::new();

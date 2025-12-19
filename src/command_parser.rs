@@ -22,12 +22,16 @@ const ERR_CAPACITY_POSITIVE: &str = "ERR capacity must be positive";
 const ERR_PERIOD_POSITIVE: &str = "ERR period/window must be positive";
 const ERR_TOKENS_POSITIVE: &str = "ERR tokens must be positive";
 
+/// Parsed representation of a `SHIELD.absorb` invocation.
 pub struct CommandInvocation {
     pub key: RedisString,
     pub cfg: PolicyConfig,
     pub tokens: i64,
 }
 
+/// Validates and parses the raw Redis arguments into a [`CommandInvocation`].
+///
+/// This ensures arity, parses algorithm selections, and normalizes optional tokens.
 pub fn parse_command_args(args: &[RedisString]) -> Result<CommandInvocation, RedisError> {
     // Validate argument count
     if !matches!(args.len(), MIN_ARGS_LEN..=MAX_ARGS_LEN) {
@@ -38,9 +42,10 @@ pub fn parse_command_args(args: &[RedisString]) -> Result<CommandInvocation, Red
 
     // Create algorithm configuration
     let config = create_algorithm_config(algorithm, args)?;
-    let tokens = match args.len() {
-        MAX_ARGS_LEN => parse_positive_integer(&args[ARG_TOKENS_INDEX], ERR_TOKENS_POSITIVE)?,
-        _ => DEFAULT_TOKENS,
+    let tokens = if args.len() > ARG_TOKENS_INDEX {
+        parse_positive_integer(&args[ARG_TOKENS_INDEX], ERR_TOKENS_POSITIVE)?
+    } else {
+        DEFAULT_TOKENS
     };
     let key = args[ARG_KEY_INDEX].clone();
     Ok(CommandInvocation {
@@ -50,6 +55,9 @@ pub fn parse_command_args(args: &[RedisString]) -> Result<CommandInvocation, Red
     })
 }
 
+/// Scans the optional section of the argument list for an `ALGORITHM <name>` pair.
+///
+/// Returns `Ok(None)` when no algorithm override is provided.
 #[inline]
 fn parse_algorithm_arg(args: &[RedisString]) -> Result<Option<String>, RedisError> {
     if args.len() <= ARG_PERIOD_INDEX + 1 {
@@ -72,6 +80,7 @@ fn parse_algorithm_arg(args: &[RedisString]) -> Result<Option<String>, RedisErro
     Ok(None) // algorithm not provided
 }
 
+/// Builds the [`PolicyConfig`] requested by the user, validating shared parameters.
 #[inline]
 fn create_algorithm_config(
     algorithm: String,
@@ -92,8 +101,8 @@ fn create_algorithm_config(
 /// Parses a RedisString argument as a positive integer.
 ///
 /// # Arguments
-/// * `name` - The name of the parameter for error messages
 /// * `value` - The RedisString value to parse
+/// * `err_msg` - Static error to return when validation fails
 ///
 /// # Returns
 /// * `Ok(i64)` - The parsed positive integer
