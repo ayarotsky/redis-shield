@@ -21,10 +21,10 @@ const ERR_TIME_UNAVAILABLE: &str = "ERR unable to fetch Redis time";
 /// preceding window. The effective usage interpolates between both
 /// windows based on the elapsed time to approximate a true sliding window.
 pub struct SlidingWindow<'a> {
-    pub key: RedisString,
-    pub capacity: i64,
+    key: RedisString,
+    capacity: i64,
     /// Window length in milliseconds.
-    pub period: i64,
+    period: i64,
     ctx: &'a Context,
     current_start: i64,
     current_count: i64,
@@ -38,6 +38,16 @@ impl TrafficPolicyExecutor for SlidingWindow<'_> {
 }
 
 impl<'a> SlidingWindow<'a> {
+    /// Creates a new sliding window rate limiter.
+    ///
+    /// # Arguments
+    /// * `ctx` - Redis context for executing commands
+    /// * `key` - Redis key for persisting window state
+    /// * `capacity` - Maximum tokens allowed per window (must be positive)
+    /// * `period_sec` - Window duration in seconds (must be positive)
+    ///
+    /// # Errors
+    /// Returns an error if capacity/period are non-positive or if period overflows.
     #[inline]
     pub fn new(
         ctx: &'a Context,
@@ -70,6 +80,14 @@ impl<'a> SlidingWindow<'a> {
         Ok(limiter)
     }
 
+    /// Attempts to consume tokens from the sliding window.
+    ///
+    /// # Arguments
+    /// * `tokens` - Number of tokens to consume (must be positive)
+    ///
+    /// # Returns
+    /// * `Ok(remaining)` - Remaining capacity after consumption
+    /// * `Ok(-1)` - Insufficient capacity (request denied)
     #[inline]
     pub fn consume(&mut self, tokens: i64) -> Result<i64, RedisError> {
         if tokens <= 0 {
@@ -91,6 +109,7 @@ impl<'a> SlidingWindow<'a> {
         Ok(remaining.max(MIN_COUNT))
     }
 
+    /// Loads persisted state and clamps it to sane bounds relative to `now_ms`.
     #[inline]
     fn load_state(&mut self, now_ms: i64) -> Result<(), RedisError> {
         match self.ctx.call("GET", &[&self.key])? {
@@ -112,6 +131,7 @@ impl<'a> SlidingWindow<'a> {
         Ok(())
     }
 
+    /// Applies a serialized state blob into the in-memory counters.
     #[inline]
     fn apply_state(&mut self, payload: &str, now_ms: i64) {
         if let Some((start, current, previous)) = Self::decode_state(payload) {
@@ -126,6 +146,7 @@ impl<'a> SlidingWindow<'a> {
         let _ = self.align_to_now(now_ms);
     }
 
+    /// Realigns the sliding window to `now_ms`, rotating counters as necessary.
     #[inline]
     fn align_to_now(&mut self, now_ms: i64) -> i64 {
         if self.current_start > now_ms || self.current_start < 0 {
@@ -154,6 +175,7 @@ impl<'a> SlidingWindow<'a> {
         elapsed
     }
 
+    /// Calculates the effective usage at the given elapsed offset, weighting the previous window.
     #[inline]
     fn effective_usage(&self, elapsed: i64) -> i64 {
         let remaining = self.period.saturating_sub(elapsed);
@@ -167,6 +189,7 @@ impl<'a> SlidingWindow<'a> {
             .min(self.capacity)
     }
 
+    /// Persists the current window snapshot along with a TTL representing at most two periods.
     #[inline]
     fn persist_state(&self) -> Result<(), RedisError> {
         let mut state_buf = [0u8; STATE_BUFFER_LEN];
@@ -191,6 +214,7 @@ impl<'a> SlidingWindow<'a> {
         Ok(())
     }
 
+    /// Encodes the state into `buf` as `start:current:previous`, returning the written slice.
     #[inline]
     fn encode_state<'b>(&self, buf: &'b mut [u8; STATE_BUFFER_LEN]) -> &'b str {
         let mut cursor = 0;
@@ -204,6 +228,7 @@ impl<'a> SlidingWindow<'a> {
         std::str::from_utf8(&buf[..cursor]).unwrap()
     }
 
+    /// Copies an integer into the provided buffer and returns the number of bytes written.
     #[inline]
     fn copy_number(buf: &mut [u8; STATE_BUFFER_LEN], offset: usize, value: i64) -> usize {
         let mut num_buf = itoa::Buffer::new();
@@ -213,6 +238,7 @@ impl<'a> SlidingWindow<'a> {
         len
     }
 
+    /// Decodes a serialized `start:current:previous` payload.
     #[inline]
     fn decode_state(payload: &str) -> Option<(i64, i64, i64)> {
         let mut parts = payload.splitn(3, ':');
@@ -222,6 +248,7 @@ impl<'a> SlidingWindow<'a> {
         Some((start, current, previous))
     }
 
+    /// Fetches the current Redis time in milliseconds by calling `TIME`.
     #[inline]
     fn current_time_millis(ctx: &Context) -> Result<i64, RedisError> {
         let empty_args: [&RedisString; 0] = [];
@@ -241,6 +268,7 @@ impl<'a> SlidingWindow<'a> {
         }
     }
 
+    /// Parses an [`RedisValue`] response element into an `i64`.
     #[inline]
     fn parse_i64(value: &RedisValue) -> Result<i64, RedisError> {
         match value {

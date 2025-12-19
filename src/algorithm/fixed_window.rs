@@ -35,6 +35,9 @@ impl TrafficPolicyExecutor for FixedWindow<'_> {
 }
 
 impl<'a> FixedWindow<'a> {
+    /// Creates or restores a fixed window limiter for the given key.
+    ///
+    /// Validates capacity/period and hydrates state from Redis.
     #[inline]
     pub fn new(
         ctx: &'a Context,
@@ -86,6 +89,7 @@ impl<'a> FixedWindow<'a> {
         Ok(self.capacity - self.count)
     }
 
+    /// Loads the current counter from Redis, respecting TTL and resets when expired.
     #[inline]
     fn fetch_count(&mut self) -> Result<(), RedisError> {
         self.has_active_window = matches!(
@@ -114,6 +118,7 @@ impl<'a> FixedWindow<'a> {
         Ok(())
     }
 
+    /// Persists the updated counter, keeping or seeding the TTL as needed.
     #[inline]
     fn persist_count(&mut self) -> Result<(), RedisError> {
         let mut count_buf = itoa::Buffer::new();

@@ -1,13 +1,36 @@
 use crate::algorithm::{FixedWindow, LeakyBucket, SlidingWindow, TokenBucket};
+use arrayvec::ArrayString;
 use redis_module::{Context, RedisError, RedisString};
+use std::fmt::Write;
 
 const TRAFFIC_POLICY_KEY_PREFIX: &str = "tp";
+const STACK_KEY_CAPACITY: usize = 128;
 
+/// Storage used to hold the formatted Redis key.
+enum KeyBuffer {
+    Stack(ArrayString<STACK_KEY_CAPACITY>),
+    Heap(String),
+}
+
+impl KeyBuffer {
+    #[inline]
+    /// Returns the buffered key as a string slice, regardless of backing storage.
+    fn as_str(&self) -> &str {
+        match self {
+            KeyBuffer::Stack(buf) => buf.as_str(),
+            KeyBuffer::Heap(s) => s.as_str(),
+        }
+    }
+}
+
+/// Common interface implemented by all rate-limit algorithms.
 pub trait TrafficPolicyExecutor {
+    /// Executes the policy consuming `tokens`, returning remaining capacity or `-1` on denial.
     fn execute(&mut self, tokens: i64) -> Result<i64, RedisError>;
 }
 
 trait TrafficPolicySuffix {
+    /// Short suffix appended to Redis keys for the given policy variant.
     fn suffix(&self) -> &'static str;
 }
 
@@ -29,15 +52,14 @@ impl TrafficPolicySuffix for PolicyConfig {
     }
 }
 
+/// Instantiates a rate-limiting executor backed by the supplied Redis context and policy config.
 pub fn create_executor<'a>(
     cfg: PolicyConfig,
     ctx: &'a Context,
     key: RedisString,
 ) -> Result<Box<dyn TrafficPolicyExecutor + 'a>, RedisError> {
-    let internal_key = RedisString::create(
-        std::ptr::NonNull::new(ctx.ctx),
-        build_key(key.to_string_lossy().as_str(), cfg.suffix()),
-    );
+    let key_buf = build_key(key.try_as_str()?, cfg.suffix());
+    let internal_key = RedisString::create(std::ptr::NonNull::new(ctx.ctx), key_buf.as_str());
     match cfg {
         PolicyConfig::TokenBucket { capacity, period } => Ok(Box::new(TokenBucket::new(
             ctx,
@@ -66,6 +88,22 @@ pub fn create_executor<'a>(
     }
 }
 
-fn build_key(external_key: &str, suffix: &str) -> String {
-    format!("{}:{}:{}", TRAFFIC_POLICY_KEY_PREFIX, suffix, external_key)
+/// Builds the internal Redis key, preferring stack storage and falling back to heap allocation.
+fn build_key(external_key: &str, suffix: &str) -> KeyBuffer {
+    let mut key_buf = ArrayString::<STACK_KEY_CAPACITY>::new();
+    if write!(
+        &mut key_buf,
+        "{}:{}:{}",
+        TRAFFIC_POLICY_KEY_PREFIX, suffix, external_key
+    )
+    .is_ok()
+    {
+        KeyBuffer::Stack(key_buf)
+    } else {
+        // Fallback to heap allocation if the user-provided key exceeds our stack buffer.
+        KeyBuffer::Heap(format!(
+            "{}:{}:{}",
+            TRAFFIC_POLICY_KEY_PREFIX, suffix, external_key
+        ))
+    }
 }
