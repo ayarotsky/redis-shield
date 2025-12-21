@@ -117,6 +117,21 @@ mod tests {
         let _: () = con.del(key).unwrap();
     }
 
+    fn build_redis_key(key: &str) -> String {
+        String::from(
+            traffic_policy::build_key(
+                key,
+                traffic_policy::PolicyConfig::TokenBucket {
+                    capacity: 0,
+                    period: 0,
+                }
+                .suffix(),
+            )
+            .as_str(),
+        )
+        .to_owned()
+    }
+
     // Test constants for better readability
     const TEST_CAPACITY: i64 = 30;
     const TEST_PERIOD: i64 = 60;
@@ -135,7 +150,8 @@ mod tests {
     fn test_capacity_is_string() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_capacity_string";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         let _: () = redis::cmd(REDIS_COMMAND)
             .arg(bucket_key)
@@ -150,7 +166,8 @@ mod tests {
     fn test_capacity_is_float() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_capacity_float";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         let _: () = redis::cmd(REDIS_COMMAND)
             .arg(bucket_key)
@@ -165,7 +182,8 @@ mod tests {
     fn test_capacity_is_zero() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_capacity_zero";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         let _ = shield_absorb(&mut con, bucket_key, 0, TEST_PERIOD, None).unwrap();
     }
@@ -175,17 +193,19 @@ mod tests {
     fn test_capacity_is_negative() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_capacity_negative";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         let _ = shield_absorb(&mut con, bucket_key, -2, TEST_PERIOD, None).unwrap();
     }
 
     #[test]
-    #[should_panic(expected = "ResponseError: period must be positive")]
+    #[should_panic(expected = "ResponseError: period/window must be positive")]
     fn test_period_is_string() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_period_string";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         let _: () = redis::cmd(REDIS_COMMAND)
             .arg(bucket_key)
@@ -196,11 +216,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "ResponseError: period must be positive")]
+    #[should_panic(expected = "ResponseError: period/window must be positive")]
     fn test_period_is_float() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_period_float";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         let _: () = redis::cmd(REDIS_COMMAND)
             .arg(bucket_key)
@@ -211,21 +232,23 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "ResponseError: period must be positive")]
+    #[should_panic(expected = "ResponseError: period/window must be positive")]
     fn test_period_is_zero() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_period_zero";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         let _ = shield_absorb(&mut con, bucket_key, TEST_CAPACITY, 0, None).unwrap();
     }
 
     #[test]
-    #[should_panic(expected = "ResponseError: period must be positive")]
+    #[should_panic(expected = "ResponseError: period/window must be positive")]
     fn test_period_is_negative() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_period_negative";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         let _ = shield_absorb(&mut con, bucket_key, TEST_CAPACITY, -4, None).unwrap();
     }
@@ -235,7 +258,8 @@ mod tests {
     fn test_tokens_is_string() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_tokens_string";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         let _: () = redis::cmd(REDIS_COMMAND)
             .arg(bucket_key)
@@ -251,7 +275,8 @@ mod tests {
     fn test_tokens_is_float() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_tokens_float";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         let _: () = redis::cmd(REDIS_COMMAND)
             .arg(bucket_key)
@@ -267,7 +292,8 @@ mod tests {
     fn test_tokens_is_zero() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_tokens_zero";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         let _ = shield_absorb(&mut con, bucket_key, TEST_CAPACITY, TEST_PERIOD, Some(0)).unwrap();
     }
@@ -277,7 +303,8 @@ mod tests {
     fn test_tokens_is_negative() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_tokens_negative";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         let _ = shield_absorb(&mut con, bucket_key, TEST_CAPACITY, TEST_PERIOD, Some(-9)).unwrap();
     }
@@ -286,13 +313,13 @@ mod tests {
     fn test_bucket_does_not_exist() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_new_bucket";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         let remaining_tokens =
             shield_absorb(&mut con, bucket_key, TEST_CAPACITY, TEST_PERIOD, None).unwrap();
         assert_eq!(remaining_tokens, TEST_CAPACITY - DEFAULT_TOKENS);
-
-        let ttl: i64 = con.pttl(bucket_key).unwrap();
+        let ttl: i64 = con.pttl(redis_key.as_str()).unwrap();
         assert!(
             ttl >= 59900 && ttl <= 60000,
             "TTL should be close to 60000ms, got {}",
@@ -304,16 +331,17 @@ mod tests {
     fn test_bucket_exists_but_has_no_ttl() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_no_expire";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         // Set a value without TTL
-        let _: () = con.set(bucket_key, 2).unwrap();
+        let _: () = con.set(redis_key.as_str(), 2).unwrap();
 
         let remaining_tokens =
             shield_absorb(&mut con, bucket_key, TEST_CAPACITY, TEST_PERIOD, None).unwrap();
         assert_eq!(remaining_tokens, TEST_CAPACITY - DEFAULT_TOKENS);
 
-        let ttl: i64 = con.pttl(bucket_key).unwrap();
+        let ttl: i64 = con.pttl(redis_key.as_str()).unwrap();
         assert!(
             ttl >= 59900 && ttl <= 60000,
             "TTL should be close to 60000ms, got {}",
@@ -325,7 +353,8 @@ mod tests {
     fn test_multiple_tokens_requested() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_multiple_tokens";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         let tokens_to_consume = 25;
         let remaining_tokens = shield_absorb(
@@ -343,7 +372,8 @@ mod tests {
     fn test_bucket_is_overflown() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_overflow";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         let tokens_to_consume = TEST_CAPACITY + 1;
         let remaining_tokens = shield_absorb(
@@ -364,15 +394,16 @@ mod tests {
     fn test_sequential_requests() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_sequential";
+        let redis_key = build_redis_key(bucket_key);
         let capacity = 2;
         let period = 60;
-        cleanup_key(&mut con, bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         // First request: should succeed
         let remaining_tokens = shield_absorb(&mut con, bucket_key, capacity, period, None).unwrap();
         assert_eq!(remaining_tokens, 1, "First request should leave 1 token");
 
-        let ttl: i64 = con.pttl(bucket_key).unwrap();
+        let ttl: i64 = con.pttl(redis_key.as_str()).unwrap();
         assert!(
             ttl >= 59900 && ttl <= 60000,
             "TTL should be close to 60000ms"
@@ -382,7 +413,7 @@ mod tests {
         let remaining_tokens = shield_absorb(&mut con, bucket_key, capacity, period, None).unwrap();
         assert_eq!(remaining_tokens, 0, "Second request should leave 0 tokens");
 
-        let ttl: i64 = con.pttl(bucket_key).unwrap();
+        let ttl: i64 = con.pttl(redis_key.as_str()).unwrap();
         assert!(
             ttl >= 59900 && ttl <= 60000,
             "TTL should be close to 60000ms"
@@ -392,7 +423,7 @@ mod tests {
         let remaining_tokens = shield_absorb(&mut con, bucket_key, capacity, period, None).unwrap();
         assert_eq!(remaining_tokens, -1, "Third request should be denied");
 
-        let ttl: i64 = con.pttl(bucket_key).unwrap();
+        let ttl: i64 = con.pttl(redis_key.as_str()).unwrap();
         assert!(
             ttl >= 59900 && ttl <= 60000,
             "TTL should be close to 60000ms"
@@ -403,9 +434,10 @@ mod tests {
     fn test_bucket_refills_with_time() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_refill";
+        let redis_key = build_redis_key(bucket_key);
         let capacity = 3;
         let period = 6;
-        cleanup_key(&mut con, bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         // Initial request
         let remaining_tokens = shield_absorb(&mut con, bucket_key, capacity, period, None).unwrap();
@@ -444,7 +476,8 @@ mod tests {
     fn test_edge_case_single_token_bucket() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_single_token";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         // Test with capacity=1, period=1
         let remaining_tokens = shield_absorb(&mut con, bucket_key, 1, 1, None).unwrap();
@@ -462,7 +495,8 @@ mod tests {
     fn test_large_capacity_bucket() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_large_capacity";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         let large_capacity = 1000;
         let tokens_to_consume = 500;
@@ -486,7 +520,8 @@ mod tests {
     fn test_exact_capacity_consumption() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_exact_capacity";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         let capacity = 10;
 
@@ -511,7 +546,8 @@ mod tests {
     fn test_very_short_period() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_short_period";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         // Test with a very short period (1 second)
         let remaining_tokens = shield_absorb(&mut con, bucket_key, 5, 1, Some(3)).unwrap();
@@ -535,7 +571,8 @@ mod tests {
     fn test_boundary_conditions() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_boundary";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         // Test consuming capacity - 1 tokens
         let capacity = 100;
@@ -572,11 +609,11 @@ mod tests {
     fn test_corrupted_redis_data() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_corrupted_data";
-        cleanup_key(&mut con, bucket_key);
-
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
         // Set invalid (non-numeric) data in Redis
-        let _: () = con.set(bucket_key, "corrupted_data").unwrap();
-
+        let _: () = con.set(redis_key.as_str(), "corrupted_data").unwrap();
+        println!("Set corrupted data in key: {}", bucket_key);
         // Should detect corrupted data and fail fast for security
         let _ = shield_absorb(&mut con, bucket_key, 10, TEST_PERIOD, None).unwrap();
     }
@@ -588,10 +625,11 @@ mod tests {
     fn test_redis_key_with_different_data_types() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_different_types";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         // Test with different Redis value types
-        let _: () = con.hset(bucket_key, "field", "value").unwrap();
+        let _: () = con.hset(redis_key.as_str(), "field", "value").unwrap();
 
         // Should detect wrong Redis data type and fail fast
         let _ = shield_absorb(&mut con, bucket_key, 10, TEST_PERIOD, None).unwrap();
@@ -601,7 +639,8 @@ mod tests {
     fn test_maximum_values() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_max_values";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         // Test with very large values (within reasonable bounds)
         let large_capacity = 10000;
@@ -624,8 +663,10 @@ mod tests {
         let mut con = establish_connection();
         let bucket_key1 = "redis-shield::test_concurrent_1";
         let bucket_key2 = "redis-shield::test_concurrent_2";
-        cleanup_key(&mut con, bucket_key1);
-        cleanup_key(&mut con, bucket_key2);
+        let redis_key1 = build_redis_key(bucket_key1);
+        let redis_key2 = build_redis_key(bucket_key2);
+        cleanup_key(&mut con, redis_key1.as_str());
+        cleanup_key(&mut con, redis_key2.as_str());
 
         // Test that different buckets don't interfere with each other
         let tokens1 = shield_absorb(&mut con, bucket_key1, 10, TEST_PERIOD, Some(5)).unwrap();
@@ -645,7 +686,8 @@ mod tests {
 
         // Test with special characters in key
         let special_key = "redis-shield::test:with:colons:and-dashes_and_underscores";
-        cleanup_key(&mut con, special_key);
+        let redis_key = build_redis_key(special_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         let remaining_tokens = shield_absorb(&mut con, special_key, 5, TEST_PERIOD, None).unwrap();
         assert_eq!(
@@ -655,7 +697,8 @@ mod tests {
 
         // Test with empty-like key (but not actually empty)
         let minimal_key = "x";
-        cleanup_key(&mut con, minimal_key);
+        let redis_key_minimal = build_redis_key(minimal_key);
+        cleanup_key(&mut con, redis_key_minimal.as_str());
 
         let remaining_tokens = shield_absorb(&mut con, minimal_key, 5, TEST_PERIOD, None).unwrap();
         assert_eq!(remaining_tokens, 4, "Should handle minimal key");
@@ -665,7 +708,8 @@ mod tests {
     fn test_refill_precision() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_refill_precision";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         let capacity = 100;
         let period = 10; // 10 seconds
@@ -692,12 +736,13 @@ mod tests {
     fn test_ttl_edge_cases() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_ttl_edge_cases";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         // Create bucket and verify TTL is set correctly
         let _remaining_tokens = shield_absorb(&mut con, bucket_key, 10, 30, None).unwrap();
 
-        let ttl: i64 = con.pttl(bucket_key).unwrap();
+        let ttl: i64 = con.pttl(redis_key.as_str()).unwrap();
         assert!(
             ttl >= 29900 && ttl <= 30000,
             "TTL should be close to 30000ms for 30s period, got {}",
@@ -706,10 +751,11 @@ mod tests {
 
         // Test with very short period
         let short_key = "redis-shield::test_ttl_short";
-        cleanup_key(&mut con, short_key);
+        let redis_short_key = build_redis_key(short_key);
+        cleanup_key(&mut con, redis_short_key.as_str());
 
         let _remaining_tokens = shield_absorb(&mut con, short_key, 10, 1, None).unwrap();
-        let ttl: i64 = con.pttl(short_key).unwrap();
+        let ttl: i64 = con.pttl(redis_short_key.as_str()).unwrap();
         assert!(
             ttl >= 900 && ttl <= 1000,
             "TTL should be close to 1000ms for 1s period, got {}",
@@ -721,7 +767,8 @@ mod tests {
     fn test_zero_tokens_consumption() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_zero_consumption";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         // Test default tokens consumption (should be 1)
         let remaining_tokens = shield_absorb(&mut con, bucket_key, 10, TEST_PERIOD, None).unwrap();
@@ -739,7 +786,8 @@ mod tests {
     fn test_redis_connection_resilience() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_redis_resilience";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         // Test multiple operations to ensure Redis connection stability
         for i in 0..5 {
@@ -761,7 +809,8 @@ mod tests {
     fn test_period_overflow() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_period_overflow";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         // Period that would overflow when multiplied by 1000
         // i64::MAX / 1000 = 9,223,372,036,854,775
@@ -775,7 +824,8 @@ mod tests {
     fn test_maximum_safe_period() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_max_safe_period";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         // Use a very large period that tests overflow protection without exceeding Redis limits
         // Redis internally converts TTL to absolute timestamp (current_time_ms + ttl_ms)
@@ -795,7 +845,8 @@ mod tests {
     fn test_large_capacity_no_overflow() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_large_capacity_no_overflow";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         // Use a very large capacity to test saturating_add behavior
         // We can't use i64::MAX because capacity * elapsed_fraction might overflow in f64
@@ -829,7 +880,8 @@ mod tests {
     fn test_extreme_capacity_values() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_extreme_capacity";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         // Test with extremely large capacity
         let extreme_capacity = 1_000_000_000_000_i64; // 1 trillion
@@ -871,7 +923,8 @@ mod tests {
     fn test_token_refill_with_large_values() {
         let mut con = establish_connection();
         let bucket_key = "redis-shield::test_refill_large_values";
-        cleanup_key(&mut con, bucket_key);
+        let redis_key = build_redis_key(bucket_key);
+        cleanup_key(&mut con, redis_key.as_str());
 
         // Use a large capacity with a short period to test refill calculation
         let large_capacity = 10_000_000_i64;
