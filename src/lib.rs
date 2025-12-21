@@ -80,7 +80,7 @@ redis_module! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::command_parser::DEFAULT_TOKENS;
+    use crate::command_parser::{ARG_ALGORITHM_FLAG, DEFAULT_TOKENS};
     extern crate redis;
     use redis::Commands;
     use std::env;
@@ -104,10 +104,36 @@ mod tests {
         period: i64,
         tokens: Option<i64>,
     ) -> redis::RedisResult<i64> {
+        shield_absorb_with_options(con, key, capacity, period, tokens, None)
+    }
+
+    /// Helper function to execute SHIELD.absorb with an explicit algorithm selection.
+    fn shield_absorb_with_algorithm(
+        con: &mut redis::Connection,
+        key: &str,
+        capacity: i64,
+        period: i64,
+        tokens: Option<i64>,
+        algorithm: &str,
+    ) -> redis::RedisResult<i64> {
+        shield_absorb_with_options(con, key, capacity, period, tokens, Some(algorithm))
+    }
+
+    fn shield_absorb_with_options(
+        con: &mut redis::Connection,
+        key: &str,
+        capacity: i64,
+        period: i64,
+        tokens: Option<i64>,
+        algorithm: Option<&str>,
+    ) -> redis::RedisResult<i64> {
         let mut cmd = redis::cmd(REDIS_COMMAND);
         cmd.arg(key).arg(capacity).arg(period);
         if let Some(t) = tokens {
             cmd.arg(t);
+        }
+        if let Some(algo) = algorithm {
+            cmd.arg(ARG_ALGORITHM_FLAG).arg(algo);
         }
         cmd.query(con)
     }
@@ -118,18 +144,19 @@ mod tests {
     }
 
     fn build_redis_key(key: &str) -> String {
-        String::from(
-            traffic_policy::build_key(
-                key,
-                traffic_policy::PolicyConfig::TokenBucket {
-                    capacity: 0,
-                    period: 0,
-                }
-                .suffix(),
-            )
-            .as_str(),
+        build_redis_key_for_suffix(
+            key,
+            traffic_policy::PolicyConfig::TokenBucket {
+                capacity: 0,
+                period: 0,
+            }
+            .suffix(),
         )
-        .to_owned()
+    }
+
+    fn build_redis_key_for_suffix(key: &str, suffix: &str) -> String {
+        let key_buf = traffic_policy::build_key(key, suffix);
+        key_buf.as_str().to_owned()
     }
 
     // Test constants for better readability
@@ -307,6 +334,178 @@ mod tests {
         cleanup_key(&mut con, redis_key.as_str());
 
         let _ = shield_absorb(&mut con, bucket_key, TEST_CAPACITY, TEST_PERIOD, Some(-9)).unwrap();
+    }
+
+    #[test]
+    fn test_default_algorithm_is_token_bucket() {
+        let mut con = establish_connection();
+        let bucket_key = "redis-shield::test_default_token_bucket";
+        let token_bucket_key = build_redis_key(bucket_key);
+        let leaky_bucket_key = build_redis_key_for_suffix(
+            bucket_key,
+            traffic_policy::PolicyConfig::LeakyBucket {
+                capacity: 0,
+                period: 0,
+            }
+            .suffix(),
+        );
+
+        cleanup_key(&mut con, token_bucket_key.as_str());
+        cleanup_key(&mut con, leaky_bucket_key.as_str());
+
+        let remaining_tokens =
+            shield_absorb(&mut con, bucket_key, TEST_CAPACITY, TEST_PERIOD, None).unwrap();
+        assert_eq!(
+            remaining_tokens,
+            TEST_CAPACITY - DEFAULT_TOKENS,
+            "Default invocation should consume using the token bucket algorithm"
+        );
+
+        let token_bucket_exists: bool = con.exists(token_bucket_key.as_str()).unwrap();
+        let leaky_bucket_exists: bool = con.exists(leaky_bucket_key.as_str()).unwrap();
+        assert!(
+            token_bucket_exists,
+            "Token bucket storage should be created when no algorithm override is provided"
+        );
+        assert!(
+            !leaky_bucket_exists,
+            "Other algorithm storage should remain untouched when using defaults"
+        );
+
+        cleanup_key(&mut con, token_bucket_key.as_str());
+        cleanup_key(&mut con, leaky_bucket_key.as_str());
+    }
+
+    #[test]
+    fn test_leaky_bucket_algorithm() {
+        let mut con = establish_connection();
+        let bucket_key = "redis-shield::test_leaky_bucket";
+        let redis_key = build_redis_key_for_suffix(
+            bucket_key,
+            traffic_policy::PolicyConfig::LeakyBucket {
+                capacity: 0,
+                period: 0,
+            }
+            .suffix(),
+        );
+        cleanup_key(&mut con, redis_key.as_str());
+
+        let remaining_tokens = shield_absorb_with_algorithm(
+            &mut con,
+            bucket_key,
+            5,
+            2,
+            Some(DEFAULT_TOKENS),
+            "leaky_bucket",
+        )
+        .unwrap();
+        assert_eq!(
+            remaining_tokens, 4,
+            "Leaky bucket should return remaining headroom after accepting a burst"
+        );
+
+        let denied_tokens =
+            shield_absorb_with_algorithm(&mut con, bucket_key, 5, 2, Some(5), "leaky_bucket")
+                .unwrap();
+        assert_eq!(
+            denied_tokens, -1,
+            "Leaky bucket should deny bursts that exceed the configured capacity"
+        );
+
+        thread::sleep(time::Duration::from_secs(3));
+        let refill_tokens =
+            shield_absorb_with_algorithm(&mut con, bucket_key, 5, 2, Some(5), "leaky_bucket")
+                .unwrap();
+        assert_eq!(
+            refill_tokens, 0,
+            "Leaky bucket should allow new bursts after the leak period elapses"
+        );
+
+        cleanup_key(&mut con, redis_key.as_str());
+    }
+
+    #[test]
+    fn test_fixed_window_algorithm() {
+        let mut con = establish_connection();
+        let bucket_key = "redis-shield::test_fixed_window";
+        let redis_key = build_redis_key_for_suffix(
+            bucket_key,
+            traffic_policy::PolicyConfig::FixedWindow {
+                capacity: 0,
+                period: 0,
+            }
+            .suffix(),
+        );
+        cleanup_key(&mut con, redis_key.as_str());
+
+        let remaining_tokens =
+            shield_absorb_with_algorithm(&mut con, bucket_key, 3, 1, Some(2), "fixed_window")
+                .unwrap();
+        assert_eq!(
+            remaining_tokens, 1,
+            "Fixed window should report remaining capacity within the active window"
+        );
+
+        let denied_tokens =
+            shield_absorb_with_algorithm(&mut con, bucket_key, 3, 1, Some(2), "fixed_window")
+                .unwrap();
+        assert_eq!(
+            denied_tokens, -1,
+            "Fixed window should deny requests that overflow the current window"
+        );
+
+        thread::sleep(time::Duration::from_secs(2));
+        let reset_tokens =
+            shield_absorb_with_algorithm(&mut con, bucket_key, 3, 1, Some(1), "fixed_window")
+                .unwrap();
+        assert_eq!(
+            reset_tokens, 2,
+            "After the window expires, capacity should reset for the next window"
+        );
+
+        cleanup_key(&mut con, redis_key.as_str());
+    }
+
+    #[test]
+    fn test_sliding_window_algorithm() {
+        let mut con = establish_connection();
+        let bucket_key = "redis-shield::test_sliding_window";
+        let redis_key = build_redis_key_for_suffix(
+            bucket_key,
+            traffic_policy::PolicyConfig::SlidingWindow {
+                capacity: 0,
+                period: 0,
+            }
+            .suffix(),
+        );
+        cleanup_key(&mut con, redis_key.as_str());
+
+        let remaining_tokens =
+            shield_absorb_with_algorithm(&mut con, bucket_key, 4, 2, Some(3), "sliding_window")
+                .unwrap();
+        assert_eq!(
+            remaining_tokens, 1,
+            "Sliding window should track remaining capacity within the current window"
+        );
+
+        let denied_tokens =
+            shield_absorb_with_algorithm(&mut con, bucket_key, 4, 2, Some(2), "sliding_window")
+                .unwrap();
+        assert_eq!(
+            denied_tokens, -1,
+            "Sliding window should deny bursts that exceed the blended window usage"
+        );
+
+        thread::sleep(time::Duration::from_secs(2));
+        let post_decay_tokens =
+            shield_absorb_with_algorithm(&mut con, bucket_key, 4, 2, Some(1), "sliding_window")
+                .unwrap();
+        assert!(
+            post_decay_tokens >= 0,
+            "Sliding window should allow new tokens after prior usage decays"
+        );
+
+        cleanup_key(&mut con, redis_key.as_str());
     }
 
     #[test]
