@@ -11,7 +11,7 @@ const ARG_PERIOD_INDEX: usize = 3;
 const ARG_TOKENS_INDEX: usize = 4;
 // Default values
 pub const DEFAULT_TOKENS: i64 = 1;
-const ARG_ALGORITHM_FLAG: &str = "ALGORITHM";
+pub const ARG_ALGORITHM_FLAG: &str = "ALGORITHM";
 const DEFAULT_ALGORITHM: &str = "token_bucket";
 
 // Error messages
