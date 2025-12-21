@@ -135,8 +135,8 @@ impl<'a> LeakyBucket<'a> {
             _ => MIN_LEVEL,
         };
 
-        // Apply leak: level decreases by leaked, floored at 0
-        let new_level = stored_level.saturating_sub(leaked);
+        // Apply leak: level decreases by leaked, floored at MIN_LEVEL
+        let new_level = stored_level.saturating_sub(leaked).max(MIN_LEVEL);
         self.level = new_level.min(self.capacity);
         Ok(())
     }
