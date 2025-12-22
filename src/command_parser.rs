@@ -42,8 +42,18 @@ pub fn parse_command_args(args: &[RedisString]) -> Result<CommandInvocation, Red
 
     // Create algorithm configuration
     let config = create_algorithm_config(algorithm, args)?;
+    // Parse optional tokens argument
     let tokens = if args.len() > ARG_TOKENS_INDEX {
-        parse_positive_integer(&args[ARG_TOKENS_INDEX], ERR_TOKENS_POSITIVE)?
+        let potential_tokens = &args[ARG_TOKENS_INDEX];
+        if potential_tokens
+            .try_as_str()
+            .map(|s| s.eq_ignore_ascii_case(ARG_ALGORITHM_FLAG))
+            .unwrap_or(false)
+        {
+            DEFAULT_TOKENS
+        } else {
+            parse_positive_integer(potential_tokens, ERR_TOKENS_POSITIVE)?
+        }
     } else {
         DEFAULT_TOKENS
     };
