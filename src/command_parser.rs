@@ -1,5 +1,5 @@
 use crate::traffic_policy::PolicyConfig;
-use redis_module::{RedisError, RedisString};
+use redis_module::RedisError;
 
 // Command argument constraints
 const MIN_ARGS_LEN: usize = 4;
@@ -23,8 +23,8 @@ const ERR_PERIOD_POSITIVE: &str = "ERR period/window must be positive";
 const ERR_TOKENS_POSITIVE: &str = "ERR tokens must be positive";
 
 /// Parsed representation of a `SHIELD.absorb` invocation.
-pub struct CommandInvocation {
-    pub key: RedisString,
+pub struct CommandInvocation<'a> {
+    pub key: &'a str,
     pub cfg: PolicyConfig,
     pub tokens: i64,
 }
@@ -32,32 +32,56 @@ pub struct CommandInvocation {
 /// Validates and parses the raw Redis arguments into a [`CommandInvocation`].
 ///
 /// This ensures arity, parses algorithm selections, and normalizes optional tokens.
-pub fn parse_command_args(args: &[RedisString]) -> Result<CommandInvocation, RedisError> {
+pub fn parse_command_args<'a>(args: &'a [&'a str]) -> Result<CommandInvocation<'a>, RedisError> {
     // Validate argument count
     if !matches!(args.len(), MIN_ARGS_LEN..=MAX_ARGS_LEN) {
         return Err(RedisError::WrongArity);
     }
-    // Parse algorithm argument, default to "token_bucket" if not provided
-    let algorithm = parse_algorithm_arg(args)?.unwrap_or(DEFAULT_ALGORITHM);
+
+    let (algorithm, tokens) = match args.len() {
+        MIN_ARGS_LEN => (DEFAULT_ALGORITHM, DEFAULT_TOKENS),
+        5 => {
+            let candidate = args[ARG_TOKENS_INDEX];
+            if candidate.eq_ignore_ascii_case(ARG_ALGORITHM_FLAG) {
+                return Err(RedisError::Str(ERR_ALGORITHM_VALUE_MISSING));
+            }
+            (
+                DEFAULT_ALGORITHM,
+                parse_positive_integer(args[ARG_TOKENS_INDEX], ERR_TOKENS_POSITIVE)?,
+            )
+        }
+        6 => {
+            let candidate = args[ARG_TOKENS_INDEX];
+            if candidate.eq_ignore_ascii_case(ARG_ALGORITHM_FLAG) {
+                let algorithm = args
+                    .get(ARG_TOKENS_INDEX + 1)
+                    .ok_or(RedisError::Str(ERR_ALGORITHM_VALUE_MISSING))?;
+
+                (*algorithm, DEFAULT_TOKENS)
+            } else if args[ARG_TOKENS_INDEX + 1].eq_ignore_ascii_case(ARG_ALGORITHM_FLAG) {
+                return Err(RedisError::Str(ERR_ALGORITHM_VALUE_MISSING));
+            } else {
+                return Err(RedisError::WrongArity);
+            }
+        }
+        7 => {
+            if !args[ARG_TOKENS_INDEX + 1].eq_ignore_ascii_case(ARG_ALGORITHM_FLAG) {
+                return Err(RedisError::WrongArity);
+            }
+            let algorithm = args
+                .get(ARG_TOKENS_INDEX + 2)
+                .ok_or(RedisError::Str(ERR_ALGORITHM_VALUE_MISSING))?;
+            (
+                *algorithm,
+                parse_positive_integer(args[ARG_TOKENS_INDEX], ERR_TOKENS_POSITIVE)?,
+            )
+        }
+        _ => return Err(RedisError::WrongArity),
+    };
 
     // Create algorithm configuration
     let config = create_algorithm_config(algorithm, args)?;
-    // Parse optional tokens argument
-    let tokens = if args.len() > ARG_TOKENS_INDEX {
-        let potential_tokens = &args[ARG_TOKENS_INDEX];
-        if potential_tokens
-            .try_as_str()
-            .map(|s| s.eq_ignore_ascii_case(ARG_ALGORITHM_FLAG))
-            .unwrap_or(false)
-        {
-            DEFAULT_TOKENS
-        } else {
-            parse_positive_integer(potential_tokens, ERR_TOKENS_POSITIVE)?
-        }
-    } else {
-        DEFAULT_TOKENS
-    };
-    let key = args[ARG_KEY_INDEX].clone();
+    let key = args[ARG_KEY_INDEX];
     Ok(CommandInvocation {
         key,
         cfg: config,
@@ -65,40 +89,12 @@ pub fn parse_command_args(args: &[RedisString]) -> Result<CommandInvocation, Red
     })
 }
 
-/// Scans the optional section of the argument list for an `ALGORITHM <name>` pair.
-///
-/// Returns `Ok(None)` when no algorithm override is provided.
-#[inline]
-fn parse_algorithm_arg(args: &[RedisString]) -> Result<Option<&str>, RedisError> {
-    if args.len() <= ARG_PERIOD_INDEX + 1 {
-        // Not enough arguments to contain an ALGORITHM flag and value.
-        return Ok(None);
-    }
-
-    let mut idx = ARG_PERIOD_INDEX + 1;
-    while idx < args.len() {
-        let key = args[idx].try_as_str()?;
-        if key.eq_ignore_ascii_case(ARG_ALGORITHM_FLAG) {
-            let value = args
-                .get(idx + 1)
-                .ok_or(RedisError::Str(ERR_ALGORITHM_VALUE_MISSING))?;
-            return Ok(Some(value.try_as_str()?));
-        }
-        idx += 1;
-    }
-
-    Ok(None) // algorithm not provided
-}
-
 /// Builds the [`PolicyConfig`] requested by the user, validating shared parameters.
 #[inline]
-fn create_algorithm_config(
-    algorithm: &str,
-    args: &[RedisString],
-) -> Result<PolicyConfig, RedisError> {
+fn create_algorithm_config(algorithm: &str, args: &[&str]) -> Result<PolicyConfig, RedisError> {
     // Parse and validate arguments
-    let capacity = parse_positive_integer(&args[ARG_CAPACITY_INDEX], ERR_CAPACITY_POSITIVE)?;
-    let period = parse_positive_integer(&args[ARG_PERIOD_INDEX], ERR_PERIOD_POSITIVE)?;
+    let capacity = parse_positive_integer(args[ARG_CAPACITY_INDEX], ERR_CAPACITY_POSITIVE)?;
+    let period = parse_positive_integer(args[ARG_PERIOD_INDEX], ERR_PERIOD_POSITIVE)?;
     match algorithm {
         "token_bucket" => Ok(PolicyConfig::TokenBucket { capacity, period }),
         "leaky_bucket" => Ok(PolicyConfig::LeakyBucket { capacity, period }),
@@ -123,9 +119,115 @@ fn create_algorithm_config(
 /// - The value cannot be parsed as an integer
 /// - The parsed integer is not positive (≤ 0)
 #[inline]
-fn parse_positive_integer(value: &RedisString, err_msg: &'static str) -> Result<i64, RedisError> {
-    match value.parse_integer() {
+fn parse_positive_integer(value: &str, err_msg: &'static str) -> Result<i64, RedisError> {
+    match value.parse::<i64>() {
         Ok(arg) if arg > 0 => Ok(arg),
         _ => Err(RedisError::Str(err_msg)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_base_args_defaults_tokens_and_algorithm() {
+        let args = ["SHIELD.absorb", "user1", "10", "60"];
+        let invocation = parse_command_args(&args).expect("parse base args");
+
+        assert_eq!(invocation.tokens, DEFAULT_TOKENS);
+        match invocation.cfg {
+            PolicyConfig::TokenBucket { capacity, period } => {
+                assert_eq!(capacity, 10);
+                assert_eq!(period, 60);
+            }
+            _ => panic!("expected token_bucket config"),
+        }
+    }
+
+    #[test]
+    fn parse_args_with_tokens() {
+        let args = ["SHIELD.absorb", "user1", "10", "60", "5"];
+        let invocation = parse_command_args(&args).expect("parse tokens");
+
+        assert_eq!(invocation.tokens, 5);
+        match invocation.cfg {
+            PolicyConfig::TokenBucket { capacity, period } => {
+                assert_eq!(capacity, 10);
+                assert_eq!(period, 60);
+            }
+            _ => panic!("expected token_bucket config"),
+        }
+    }
+
+    #[test]
+    fn parse_args_with_algorithm_only() {
+        let args = [
+            "SHIELD.absorb",
+            "user1",
+            "10",
+            "60",
+            "ALGORITHM",
+            "fixed_window",
+        ];
+        let invocation = parse_command_args(&args).expect("parse algorithm only");
+
+        assert_eq!(invocation.tokens, DEFAULT_TOKENS);
+        match invocation.cfg {
+            PolicyConfig::FixedWindow { capacity, period } => {
+                assert_eq!(capacity, 10);
+                assert_eq!(period, 60);
+            }
+            _ => panic!("expected fixed_window config"),
+        }
+    }
+
+    #[test]
+    fn parse_args_with_tokens_and_algorithm() {
+        let args = [
+            "SHIELD.absorb",
+            "user1",
+            "10",
+            "60",
+            "5",
+            "ALGORITHM",
+            "sliding_window",
+        ];
+        let invocation = parse_command_args(&args).expect("parse tokens + algorithm");
+
+        assert_eq!(invocation.tokens, 5);
+        match invocation.cfg {
+            PolicyConfig::SlidingWindow { capacity, period } => {
+                assert_eq!(capacity, 10);
+                assert_eq!(period, 60);
+            }
+            _ => panic!("expected sliding_window config"),
+        }
+    }
+
+    #[test]
+    fn parse_args_with_algorithm_missing_value() {
+        let args = ["SHIELD.absorb", "user1", "10", "60", "ALGORITHM"];
+        match parse_command_args(&args) {
+            Err(RedisError::Str(msg)) => assert_eq!(msg, ERR_ALGORITHM_VALUE_MISSING),
+            _ => panic!("expected algorithm value missing error"),
+        }
+    }
+
+    #[test]
+    fn parse_args_rejects_algorithm_before_tokens() {
+        let args = [
+            "SHIELD.absorb",
+            "user1",
+            "10",
+            "60",
+            "ALGORITHM",
+            "fixed_window",
+            "5",
+        ];
+        match parse_command_args(&args) {
+            Err(RedisError::WrongArity) => {}
+            _ => panic!("expected wrong arity for invalid argument order"),
+        }
     }
 }

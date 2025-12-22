@@ -2,7 +2,7 @@ mod algorithm;
 mod command_parser;
 mod traffic_policy;
 
-use redis_module::{redis_module, Context, RedisResult, RedisString};
+use redis_module::{redis_module, Context, RedisError, RedisResult, RedisString};
 
 use crate::{command_parser::parse_command_args, traffic_policy::create_executor};
 
@@ -57,10 +57,16 @@ macro_rules! get_allocator {
 /// ```
 #[inline]
 fn redis_command(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
-    let command = parse_command_args(&args)?;
+    // Convert RedisString arguments to Vec<&str>
+    let arg_strs = redis_args_as_strs(&args)?;
+    let command = parse_command_args(arg_strs.as_slice())?;
     let mut executor = create_executor(command.cfg, ctx, command.key)?;
     let result = executor.execute(command.tokens)?;
     Ok(result.into())
+}
+
+fn redis_args_as_strs(args: &[RedisString]) -> Result<Vec<&str>, RedisError> {
+    args.iter().map(|s| s.try_as_str()).collect()
 }
 
 redis_module! {

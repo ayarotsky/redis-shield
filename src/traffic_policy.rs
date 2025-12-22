@@ -52,9 +52,9 @@ impl PolicyConfig {
 pub fn create_executor<'a>(
     cfg: PolicyConfig,
     ctx: &'a Context,
-    key: RedisString,
+    key: &str,
 ) -> Result<Box<dyn TrafficPolicyExecutor + 'a>, RedisError> {
-    let key_buf = build_key(key.try_as_str()?, cfg.suffix());
+    let key_buf = build_key(key, cfg.suffix());
     let internal_key = RedisString::create(std::ptr::NonNull::new(ctx.ctx), key_buf.as_str());
     match cfg {
         PolicyConfig::TokenBucket { capacity, period } => Ok(Box::new(TokenBucket::new(
