@@ -20,11 +20,11 @@ The request does not conform if there are insufficient tokens in the bucket.
 
 Clone and build the project from source.
 
-    $ git clone https://github.com/ayarotsky/redis-shield.git
-    $ cd redis-shield
-    $ cargo build --release
-    $ # extension will be **.dylib** instead of **.so** for Mac releases
-    $ cp target/release/libredis_shield.so /path/to/modules/
+    git clone https://github.com/ayarotsky/redis-shield.git
+    cd redis-shield
+    cargo build --release
+    # extension will be **.dylib** instead of **.so** for Mac releases
+    cp target/release/libredis_shield.so /path/to/modules/
 
 Run redis-server pointing to the newly built module:
 
@@ -36,7 +36,7 @@ Run redis-server pointing to the newly built module:
 
 ## Usage
 
-    SHIELD.absorb <key> <capacity> <period> [<tokens>]
+    SHIELD.absorb <key> <capacity> <period> [<tokens>] [ALGORITHM <token_bucket|leaky_bucket|fixed_window|sliding_window>]
 
 Where `key` is a unique bucket identifier. Examples:
 
@@ -47,10 +47,15 @@ For example:
 
     SHIELD.absorb ip-127.0.0.1 30 60 11
                     ▲           ▲  ▲ ▲
-                    |           |  | └─── take 11 token (default is 1 if omitted)
-                    |           |  └───── 60 seconds
-                    |           └──────── 30 tokens
+                    |           |  | └─── take 11 token (defaults to 1 if omitted)
+                    |           |  └───── 60-second period
+                    |           └──────── 30-token capacity
                     └──────────────────── key "ip-127.0.0.1"
+
+The default is token_bucket.
+To select a different algorithm:
+
+    SHIELD.absorb ip-127.0.0.1 30 60 5 ALGORITHM sliding_window
 
 The command responds with the number of tokens left in the bucket.
 `-1` is returned when the bucket is overflown.
@@ -66,10 +71,10 @@ The command responds with the number of tokens left in the bucket.
 
 Interested in contributing? See **[CONTRIBUTING.md](CONTRIBUTING.md)** for:
 
-- Development setup
-- Running tests and benchmarks
-- Code style guidelines
-- Pull request process
+* Development setup
+* Running tests and benchmarks
+* Code style guidelines
+* Pull request process
 
 ## License
 
