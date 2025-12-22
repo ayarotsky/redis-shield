@@ -47,7 +47,7 @@ cargo audit
 
 ### Module Structure
 
-```
+```text
 src/
 ├── lib.rs              # Redis command handler / module entry point
 ├── command_parser.rs   # Argument parsing & validation (algorithm selection, tokens)
@@ -94,7 +94,7 @@ src/
 
 ### Rate Limiting Algorithms
 
-**Token Bucket**
+#### Token Bucket
 
 1. Buckets initialize with `capacity` tokens
 2. Tokens refill linearly: `refilled = (elapsed / period) * capacity`
@@ -104,23 +104,23 @@ src/
 
 **Example:**
 
-```
+```bash
 SHIELD.absorb user123 30 60 13  # 30 capacity, 60s period, consume 13
 → Returns 17 (30 - 13 remaining)
 ```
 
-**Leaky Bucket**
+#### Leaky Bucket
 
 - Maintains a "water level" that leaks at `capacity/period`
 - Rejects additions that overflow capacity
 - Uses `PTTL` + elapsed math to leak without timers
 
-**Fixed Window**
+#### Fixed Window
 
 - Counts hits in current window (ms)
 - TTL-based reset; returns remaining headroom, -1 when full
 
-**Sliding Window**
+#### Sliding Window
 
 - Tracks current + previous windows, weights previous window based on elapsed time
 - Serializes `start:current:previous` into Redis to maintain state
@@ -160,7 +160,7 @@ SHIELD.absorb user123 30 60 13  # 30 capacity, 60s period, consume 13
 ### Benchmarks (November 2025)
 
 | Operation | Latency (P50) | Throughput |
-|-----------|---------------|------------|
+| ----------- | --------------- | ------------ |
 | New bucket | ~37 µs | ~27K ops/s |
 | Existing bucket | ~19 µs | ~53K ops/s |
 | Denied request | ~19 µs | ~53K ops/s |
