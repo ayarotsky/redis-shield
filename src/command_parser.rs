@@ -38,7 +38,7 @@ pub fn parse_command_args(args: &[RedisString]) -> Result<CommandInvocation, Red
         return Err(RedisError::WrongArity);
     }
     // Parse algorithm argument, default to "token_bucket" if not provided
-    let algorithm = parse_algorithm_arg(args)?.unwrap_or_else(|| DEFAULT_ALGORITHM.to_owned());
+    let algorithm = parse_algorithm_arg(args)?.unwrap_or(DEFAULT_ALGORITHM);
 
     // Create algorithm configuration
     let config = create_algorithm_config(algorithm, args)?;
@@ -69,7 +69,7 @@ pub fn parse_command_args(args: &[RedisString]) -> Result<CommandInvocation, Red
 ///
 /// Returns `Ok(None)` when no algorithm override is provided.
 #[inline]
-fn parse_algorithm_arg(args: &[RedisString]) -> Result<Option<String>, RedisError> {
+fn parse_algorithm_arg(args: &[RedisString]) -> Result<Option<&str>, RedisError> {
     if args.len() <= ARG_PERIOD_INDEX + 1 {
         // Not enough arguments to contain an ALGORITHM flag and value.
         return Ok(None);
@@ -82,7 +82,7 @@ fn parse_algorithm_arg(args: &[RedisString]) -> Result<Option<String>, RedisErro
             let value = args
                 .get(idx + 1)
                 .ok_or(RedisError::Str(ERR_ALGORITHM_VALUE_MISSING))?;
-            return Ok(Some(value.try_as_str()?.to_owned()));
+            return Ok(Some(value.try_as_str()?));
         }
         idx += 1;
     }
@@ -93,13 +93,13 @@ fn parse_algorithm_arg(args: &[RedisString]) -> Result<Option<String>, RedisErro
 /// Builds the [`PolicyConfig`] requested by the user, validating shared parameters.
 #[inline]
 fn create_algorithm_config(
-    algorithm: String,
+    algorithm: &str,
     args: &[RedisString],
 ) -> Result<PolicyConfig, RedisError> {
     // Parse and validate arguments
     let capacity = parse_positive_integer(&args[ARG_CAPACITY_INDEX], ERR_CAPACITY_POSITIVE)?;
     let period = parse_positive_integer(&args[ARG_PERIOD_INDEX], ERR_PERIOD_POSITIVE)?;
-    match algorithm.as_str() {
+    match algorithm {
         "token_bucket" => Ok(PolicyConfig::TokenBucket { capacity, period }),
         "leaky_bucket" => Ok(PolicyConfig::LeakyBucket { capacity, period }),
         "fixed_window" => Ok(PolicyConfig::FixedWindow { capacity, period }),
