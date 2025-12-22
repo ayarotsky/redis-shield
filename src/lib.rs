@@ -58,7 +58,7 @@ macro_rules! get_allocator {
 #[inline]
 fn redis_command(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     let command = parse_command_args(&args)?;
-    let mut executor = create_executor(command.cfg, ctx, command.key.to_owned())?;
+    let mut executor = create_executor(command.cfg, ctx, command.key)?;
     let result = executor.execute(command.tokens)?;
     Ok(result.into())
 }
