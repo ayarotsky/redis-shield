@@ -259,7 +259,7 @@ mod tests {
         let _: () = redis::cmd(REDIS_COMMAND)
             .arg(bucket_key)
             .arg(TEST_CAPACITY)
-            .arg(3.14)
+            .arg(3.1111)
             .query(&mut con)
             .unwrap();
     }
@@ -526,7 +526,7 @@ mod tests {
         assert_eq!(remaining_tokens, TEST_CAPACITY - DEFAULT_TOKENS);
         let ttl: i64 = con.pttl(redis_key.as_str()).unwrap();
         assert!(
-            ttl >= 59900 && ttl <= 60000,
+            (59900..=60000).contains(&ttl),
             "TTL should be close to 60000ms, got {}",
             ttl
         );
@@ -548,7 +548,7 @@ mod tests {
 
         let ttl: i64 = con.pttl(redis_key.as_str()).unwrap();
         assert!(
-            ttl >= 59900 && ttl <= 60000,
+            (59900..=60000).contains(&ttl),
             "TTL should be close to 60000ms, got {}",
             ttl
         );
@@ -610,7 +610,7 @@ mod tests {
 
         let ttl: i64 = con.pttl(redis_key.as_str()).unwrap();
         assert!(
-            ttl >= 59900 && ttl <= 60000,
+            (59900..=60000).contains(&ttl),
             "TTL should be close to 60000ms"
         );
 
@@ -620,7 +620,7 @@ mod tests {
 
         let ttl: i64 = con.pttl(redis_key.as_str()).unwrap();
         assert!(
-            ttl >= 59900 && ttl <= 60000,
+            (59900..=60000).contains(&ttl),
             "TTL should be close to 60000ms"
         );
 
@@ -630,7 +630,7 @@ mod tests {
 
         let ttl: i64 = con.pttl(redis_key.as_str()).unwrap();
         assert!(
-            ttl >= 59900 && ttl <= 60000,
+            (59900..=60000).contains(&ttl),
             "TTL should be close to 60000ms"
         );
     }
@@ -931,7 +931,7 @@ mod tests {
         let remaining_tokens = shield_absorb(&mut con, bucket_key, capacity, period, None).unwrap();
         // Allow for some timing variance
         assert!(
-            remaining_tokens >= 98 && remaining_tokens <= 99,
+            (98..=99).contains(&remaining_tokens),
             "Should have refilled approximately 50 tokens, got {}",
             remaining_tokens
         );
@@ -949,7 +949,7 @@ mod tests {
 
         let ttl: i64 = con.pttl(redis_key.as_str()).unwrap();
         assert!(
-            ttl >= 29900 && ttl <= 30000,
+            (29900..=30000).contains(&ttl),
             "TTL should be close to 30000ms for 30s period, got {}",
             ttl
         );
@@ -962,7 +962,7 @@ mod tests {
         let _remaining_tokens = shield_absorb(&mut con, short_key, 10, 1, None).unwrap();
         let ttl: i64 = con.pttl(redis_short_key.as_str()).unwrap();
         assert!(
-            ttl >= 900 && ttl <= 1000,
+            (900..=1000).contains(&ttl),
             "TTL should be close to 1000ms for 1s period, got {}",
             ttl
         );
