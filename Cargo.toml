@@ -18,7 +18,7 @@ redis-module = "2.0.7"
 # Fix for RUSTSEC-2024-0006: Multiple issues involving quote API
 shlex = "1.3.0"
 # Fast integer-to-string conversion using stack buffers (zero allocations)
-itoa = "1.0.16"
+itoa = "1.0.17"
 
 [dev-dependencies]
 redis = "1.0"
