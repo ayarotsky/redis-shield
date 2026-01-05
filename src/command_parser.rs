@@ -1,5 +1,5 @@
 use crate::traffic_policy::PolicyConfig;
-use redis_module::RedisError;
+use redis_module::{RedisError, RedisString};
 
 // Command argument constraints
 const MIN_ARGS_LEN: usize = 4;
@@ -29,79 +29,89 @@ pub struct CommandInvocation<'a> {
     pub tokens: i64,
 }
 
+#[inline]
+fn get(args: &[RedisString], idx: usize) -> Result<&str, RedisError> {
+    args.get(idx).ok_or(RedisError::WrongArity)?.try_as_str()
+}
+
 /// Validates and parses the raw Redis arguments into a [`CommandInvocation`].
 ///
 /// This ensures arity, parses algorithm selections, and normalizes optional tokens.
-pub fn parse_command_args<'a>(args: &'a [&'a str]) -> Result<CommandInvocation<'a>, RedisError> {
-    // Validate argument count
-    if !matches!(args.len(), MIN_ARGS_LEN..=MAX_ARGS_LEN) {
+pub fn parse_command_args(args: &[RedisString]) -> Result<CommandInvocation<'_>, RedisError> {
+    parse_command_args_inner(args.len(), |idx| get(args, idx))
+}
+
+#[inline]
+fn parse_command_args_inner<'a, F>(
+    len: usize,
+    mut get: F,
+) -> Result<CommandInvocation<'a>, RedisError>
+where
+    F: FnMut(usize) -> Result<&'a str, RedisError>,
+{
+    if !matches!(len, MIN_ARGS_LEN..=MAX_ARGS_LEN) {
         return Err(RedisError::WrongArity);
     }
 
-    let (algorithm, tokens) = match args.len() {
+    let (algorithm, tokens) = match len {
         MIN_ARGS_LEN => (DEFAULT_ALGORITHM, DEFAULT_TOKENS),
+
         5 => {
-            let candidate = args[ARG_TOKENS_INDEX];
+            let candidate = get(ARG_TOKENS_INDEX)?;
             if candidate.eq_ignore_ascii_case(ARG_ALGORITHM_FLAG) {
                 return Err(RedisError::Str(ERR_ALGORITHM_VALUE_MISSING));
             }
             (
                 DEFAULT_ALGORITHM,
-                parse_positive_integer(args[ARG_TOKENS_INDEX], ERR_TOKENS_POSITIVE)?,
+                parse_positive_integer(candidate, ERR_TOKENS_POSITIVE)?,
             )
         }
-        6 => {
-            let candidate = args[ARG_TOKENS_INDEX];
-            if candidate.eq_ignore_ascii_case(ARG_ALGORITHM_FLAG) {
-                let algorithm = args
-                    .get(ARG_TOKENS_INDEX + 1)
-                    .ok_or(RedisError::Str(ERR_ALGORITHM_VALUE_MISSING))?;
 
-                (*algorithm, DEFAULT_TOKENS)
-            } else if args[ARG_TOKENS_INDEX + 1].eq_ignore_ascii_case(ARG_ALGORITHM_FLAG) {
-                return Err(RedisError::Str(ERR_ALGORITHM_VALUE_MISSING));
+        6 => {
+            let candidate = get(ARG_TOKENS_INDEX)?;
+            if candidate.eq_ignore_ascii_case(ARG_ALGORITHM_FLAG) {
+                let algorithm = get(ARG_TOKENS_INDEX + 1)
+                    .map_err(|_| RedisError::Str(ERR_ALGORITHM_VALUE_MISSING))?;
+                (algorithm, DEFAULT_TOKENS)
             } else {
+                let next = get(ARG_TOKENS_INDEX + 1)?;
+                if next.eq_ignore_ascii_case(ARG_ALGORITHM_FLAG) {
+                    return Err(RedisError::Str(ERR_ALGORITHM_VALUE_MISSING));
+                }
                 return Err(RedisError::WrongArity);
             }
         }
+
         7 => {
-            if !args[ARG_TOKENS_INDEX + 1].eq_ignore_ascii_case(ARG_ALGORITHM_FLAG) {
+            let flag = get(ARG_TOKENS_INDEX + 1)?;
+            if !flag.eq_ignore_ascii_case(ARG_ALGORITHM_FLAG) {
                 return Err(RedisError::WrongArity);
             }
-            let algorithm = args
-                .get(ARG_TOKENS_INDEX + 2)
-                .ok_or(RedisError::Str(ERR_ALGORITHM_VALUE_MISSING))?;
+            let algorithm = get(ARG_TOKENS_INDEX + 2)
+                .map_err(|_| RedisError::Str(ERR_ALGORITHM_VALUE_MISSING))?;
+            let tokens_str = get(ARG_TOKENS_INDEX)?;
             (
-                *algorithm,
-                parse_positive_integer(args[ARG_TOKENS_INDEX], ERR_TOKENS_POSITIVE)?,
+                algorithm,
+                parse_positive_integer(tokens_str, ERR_TOKENS_POSITIVE)?,
             )
         }
+
         _ => return Err(RedisError::WrongArity),
     };
 
-    // Create algorithm configuration
-    let config = create_algorithm_config(algorithm, args)?;
-    let key = args[ARG_KEY_INDEX];
-    Ok(CommandInvocation {
-        key,
-        cfg: config,
-        tokens,
-    })
-}
+    let capacity = parse_positive_integer(get(ARG_CAPACITY_INDEX)?, ERR_CAPACITY_POSITIVE)?;
+    let period = parse_positive_integer(get(ARG_PERIOD_INDEX)?, ERR_PERIOD_POSITIVE)?;
 
-/// Builds the [`PolicyConfig`] requested by the user, validating shared parameters.
-#[inline]
-fn create_algorithm_config(algorithm: &str, args: &[&str]) -> Result<PolicyConfig, RedisError> {
-    // Parse and validate arguments
-    let capacity = parse_positive_integer(args[ARG_CAPACITY_INDEX], ERR_CAPACITY_POSITIVE)?;
-    let period = parse_positive_integer(args[ARG_PERIOD_INDEX], ERR_PERIOD_POSITIVE)?;
-    match algorithm {
-        "token_bucket" => Ok(PolicyConfig::TokenBucket { capacity, period }),
-        "leaky_bucket" => Ok(PolicyConfig::LeakyBucket { capacity, period }),
-        "fixed_window" => Ok(PolicyConfig::FixedWindow { capacity, period }),
-        "sliding_window" => Ok(PolicyConfig::SlidingWindow { capacity, period }),
-        _ => Err(RedisError::Str(ERR_UNKNOWN_ALGORITHM)),
-    }
+    let cfg = match algorithm {
+        "token_bucket" => PolicyConfig::TokenBucket { capacity, period },
+        "leaky_bucket" => PolicyConfig::LeakyBucket { capacity, period },
+        "fixed_window" => PolicyConfig::FixedWindow { capacity, period },
+        "sliding_window" => PolicyConfig::SlidingWindow { capacity, period },
+        _ => return Err(RedisError::Str(ERR_UNKNOWN_ALGORITHM)),
+    };
+
+    let key = get(ARG_KEY_INDEX)?;
+    Ok(CommandInvocation { key, cfg, tokens })
 }
 
 /// Parses a RedisString argument as a positive integer.
@@ -130,10 +140,18 @@ fn parse_positive_integer(value: &str, err_msg: &'static str) -> Result<i64, Red
 mod tests {
     use super::*;
 
+    fn parse_command_args_test<'a>(
+        args: &'a [&'a str],
+    ) -> Result<CommandInvocation<'a>, RedisError> {
+        parse_command_args_inner(args.len(), |idx| {
+            args.get(idx).copied().ok_or(RedisError::WrongArity)
+        })
+    }
+
     #[test]
     fn parse_base_args_defaults_tokens_and_algorithm() {
         let args = ["SHIELD.absorb", "user1", "10", "60"];
-        let invocation = parse_command_args(&args).expect("parse base args");
+        let invocation = parse_command_args_test(&args).expect("parse base args");
 
         assert_eq!(invocation.tokens, DEFAULT_TOKENS);
         match invocation.cfg {
@@ -148,7 +166,7 @@ mod tests {
     #[test]
     fn parse_args_with_tokens() {
         let args = ["SHIELD.absorb", "user1", "10", "60", "5"];
-        let invocation = parse_command_args(&args).expect("parse tokens");
+        let invocation = parse_command_args_test(&args).expect("parse tokens");
 
         assert_eq!(invocation.tokens, 5);
         match invocation.cfg {
@@ -170,7 +188,7 @@ mod tests {
             "ALGORITHM",
             "fixed_window",
         ];
-        let invocation = parse_command_args(&args).expect("parse algorithm only");
+        let invocation = parse_command_args_test(&args).expect("parse algorithm only");
 
         assert_eq!(invocation.tokens, DEFAULT_TOKENS);
         match invocation.cfg {
@@ -193,7 +211,7 @@ mod tests {
             "ALGORITHM",
             "sliding_window",
         ];
-        let invocation = parse_command_args(&args).expect("parse tokens + algorithm");
+        let invocation = parse_command_args_test(&args).expect("parse tokens + algorithm");
 
         assert_eq!(invocation.tokens, 5);
         match invocation.cfg {
@@ -208,7 +226,7 @@ mod tests {
     #[test]
     fn parse_args_with_algorithm_missing_value() {
         let args = ["SHIELD.absorb", "user1", "10", "60", "ALGORITHM"];
-        match parse_command_args(&args) {
+        match parse_command_args_test(&args) {
             Err(RedisError::Str(msg)) => assert_eq!(msg, ERR_ALGORITHM_VALUE_MISSING),
             _ => panic!("expected algorithm value missing error"),
         }
@@ -225,7 +243,7 @@ mod tests {
             "fixed_window",
             "5",
         ];
-        match parse_command_args(&args) {
+        match parse_command_args_test(&args) {
             Err(RedisError::WrongArity) => {}
             _ => panic!("expected wrong arity for invalid argument order"),
         }
