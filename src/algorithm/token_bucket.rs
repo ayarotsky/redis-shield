@@ -1,5 +1,7 @@
 use redis_module::{Context, RedisError, RedisString, RedisValue};
 
+use crate::traffic_policy::TrafficPolicyExecutor;
+
 const MILLIS_IN_SEC: i64 = 1000;
 const MIN_TTL: i64 = 0;
 const MIN_TOKENS: i64 = 0;
@@ -21,9 +23,9 @@ const ERR_INVALID_TOKEN_COUNT: &str = "ERR invalid token count in Redis";
 ///
 /// The request does not conform if there are insufficient tokens in the bucket,
 /// and the contents of the bucket are not changed.
-pub struct Bucket<'a> {
+pub struct TokenBucket<'a> {
     // Unique bucket key used to store its details in redis
-    pub key: &'a RedisString,
+    pub key: RedisString,
     // Maximum bucket's capacity
     pub capacity: i64,
     // Replenish period in which `capacity` number of tokens is refilled
@@ -34,7 +36,13 @@ pub struct Bucket<'a> {
     ctx: &'a Context,
 }
 
-impl<'a> Bucket<'a> {
+impl TrafficPolicyExecutor for TokenBucket<'_> {
+    fn execute(&mut self, tokens: i64) -> Result<i64, RedisError> {
+        self.pour(tokens)
+    }
+}
+
+impl<'a> TokenBucket<'a> {
     /// Instantiates a new bucket.
     ///
     /// If the key already exists in redis:
@@ -55,7 +63,7 @@ impl<'a> Bucket<'a> {
     #[inline]
     pub fn new(
         ctx: &'a Context,
-        key: &'a RedisString,
+        key: RedisString,
         capacity: i64,
         period: i64,
     ) -> Result<Self, RedisError> {
@@ -117,7 +125,7 @@ impl<'a> Bucket<'a> {
             self.ctx.call(
                 "PSETEX",
                 &[
-                    self.key,
+                    &self.key,
                     &RedisString::create(None, period_str),
                     &RedisString::create(None, tokens_str),
                 ],
@@ -138,7 +146,7 @@ impl<'a> Bucket<'a> {
         // Starting with Redis 2.8 the return value of PTTL in case of error changed:
         //     - The command returns -2 if the key does not exist.
         //     - The command returns -1 if the key exists but has no associated expire.
-        let current_ttl = match self.ctx.call("PTTL", &[self.key])? {
+        let current_ttl = match self.ctx.call("PTTL", &[&self.key])? {
             RedisValue::Integer(ttl) => ttl.clamp(MIN_TTL, self.period),
             _ => MIN_TTL,
         };
@@ -147,11 +155,17 @@ impl<'a> Bucket<'a> {
         // Use integer arithmetic to avoid float conversion overhead
         // We use i128 for intermediate calculation to prevent overflow
         let elapsed = self.period - current_ttl;
-        let refilled_tokens = ((elapsed as i128 * self.capacity as i128) / self.period as i128) as i64;
+        let refilled_tokens =
+            ((elapsed as i128 * self.capacity as i128) / self.period as i128) as i64;
 
         // Get the current token count stored in Redis
-        let remaining_tokens = match self.ctx.call("GET", &[self.key])? {
-            RedisValue::SimpleString(tokens_str) => tokens_str
+        let remaining_tokens = match self.ctx.call("GET", &[&self.key])? {
+            RedisValue::SimpleString(tokens_str) | RedisValue::BulkString(tokens_str) => tokens_str
+                .parse::<i64>()
+                .map_err(|_| RedisError::String(ERR_INVALID_TOKEN_COUNT.into()))?
+                .max(MIN_TOKENS),
+            RedisValue::BulkRedisString(tokens_str) => tokens_str
+                .try_as_str()?
                 .parse::<i64>()
                 .map_err(|_| RedisError::String(ERR_INVALID_TOKEN_COUNT.into()))?
                 .max(MIN_TOKENS),
@@ -160,7 +174,9 @@ impl<'a> Bucket<'a> {
 
         // Update token count: add refilled tokens but don't exceed capacity
         // Use saturating_add to prevent overflow before min() is applied
-        self.tokens = remaining_tokens.saturating_add(refilled_tokens).min(self.capacity);
+        self.tokens = remaining_tokens
+            .saturating_add(refilled_tokens)
+            .min(self.capacity);
         Ok(())
     }
 }
