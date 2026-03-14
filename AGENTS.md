@@ -1,12 +1,12 @@
 # Redis Shield - AI Agent Guide
 
-**Redis loadable module** written in **Rust** that implements **token bucket rate limiting** as a native Redis command (`SHIELD.absorb`).
+**Redis loadable module** written in **Rust** that implements native rate-limiting algorithms (`SHIELD.absorb`) with token bucket, leaky bucket, fixed window, and sliding window strategies.
 
 ## Project Essentials
 
 - **Language:** Rust Edition 2021, MSRV 1.91.1
 - **Platforms:** Linux (x86_64, aarch64), macOS (x86_64, aarch64)
-- **Core Files:** `src/lib.rs` (command handler), `src/bucket.rs` (token bucket algorithm)
+- **Core Files:** `src/lib.rs` (command handler), `src/command_parser.rs` (argument parsing), `src/traffic_policy.rs` (policy factory/key management), `src/algorithm/` (rate-limiting implementations)
 - **Performance:** 50K-55K req/s throughput, ~19µs latency per operation
 
 ## Development Commands
@@ -47,37 +47,54 @@ cargo audit
 
 ### Module Structure
 
-```
+```text
 src/
-├── lib.rs          # Redis command handler, entry point
-└── bucket.rs       # Token bucket implementation
+├── lib.rs              # Redis command handler / module entry point
+├── command_parser.rs   # Argument parsing & validation (algorithm selection, tokens)
+├── traffic_policy.rs   # Policy configuration, executor factory, stack key builder
+├── algorithm.rs        # Re-exports
+└── algorithm/          # Rate limiting implementations
+    ├── token_bucket.rs
+    ├── leaky_bucket.rs
+    ├── fixed_window.rs
+    └── sliding_window.rs
 ```
 
 ### Core Components
 
 **Command Handler (`lib.rs`)**
+
 - Entry point: `redis_command(ctx: &Context, args: Vec<RedisString>) -> RedisResult`
-- Validates 4-5 arguments: `SHIELD.absorb <key> <capacity> <period> [tokens]`
+- Delegates argument parsing to `command_parser::parse_command_args`
+- Uses `traffic_policy::create_executor` to build the requested algorithm
+- Executes algorithm via `TrafficPolicyExecutor::execute`; returns remaining tokens (>= 0) or -1 on denial
 - Uses Redis allocator in production (`RedisAlloc`), system allocator in tests
-- Returns remaining tokens (>= 0) or -1 on denial
 
-**Token Bucket (`bucket.rs`)**
-```rust
-pub struct Bucket<'a> {
-    pub key: &'a RedisString,
-    pub capacity: i64,
-    pub period: i64,        // Milliseconds internally
-    pub tokens: i64,
-    ctx: &'a Context,
-}
-```
+**Command Parser (`command_parser.rs`)**
 
-Key methods:
-- `Bucket::new()` - Creates/retrieves bucket, calculates refills
-- `Bucket::pour(tokens)` - Consumes tokens if available, returns remaining or -1
-- `fetch_tokens()` - Uses `PTTL` to calculate elapsed time and refill tokens
+- Validates arity (4–7 args) and parses integers using zero-allocation redis helpers
+- Supports optional `ALGORITHM <token_bucket|leaky_bucket|fixed_window|sliding_window>` flag
+- Defaults to token_bucket the argument is omitted
+- Defaults to 1 token consumption when the argument is omitted
+- Exposes `CommandInvocation` struct consumed by the command handler
 
-### Token Bucket Algorithm
+**Traffic Policy (`traffic_policy.rs`)**
+
+- Defines `PolicyConfig` enum & `TrafficPolicyExecutor` trait
+- Stack-based key builder using `ArrayString` (heap fallback for overflow)
+- `create_executor` constructs the correct algorithm, passing redis-safe keys
+
+**Algorithms (`src/algorithm/`)**
+
+- `token_bucket.rs`: canonical token bucket implementation (`TokenBucket::new`, `pour`, `fetch_tokens`)
+- `leaky_bucket.rs`: leaky bucket that models inflow/outflow with TTL-based leak calculations
+- `fixed_window.rs`: fixed window counter with TTL, supports remaining headroom responses
+- `sliding_window.rs`: weighted sliding window using serialized state & Redis `TIME`
+- `algorithm/mod.rs` re-exports all algorithms for easy use
+
+### Rate Limiting Algorithms
+
+#### Token Bucket
 
 1. Buckets initialize with `capacity` tokens
 2. Tokens refill linearly: `refilled = (elapsed / period) * capacity`
@@ -86,19 +103,39 @@ Key methods:
 5. Period converted from seconds to milliseconds internally
 
 **Example:**
-```
+
+```bash
 SHIELD.absorb user123 30 60 13  # 30 capacity, 60s period, consume 13
 → Returns 17 (30 - 13 remaining)
 ```
 
+#### Leaky Bucket
+
+- Maintains a "water level" that leaks at `capacity/period`
+- Rejects additions that overflow capacity
+- Uses `PTTL` + elapsed math to leak without timers
+
+#### Fixed Window
+
+- Counts hits in current window (ms)
+- TTL-based reset; returns remaining headroom, -1 when full
+
+#### Sliding Window
+
+- Tracks current + previous windows, weights previous window based on elapsed time
+- Serializes `start:current:previous` into Redis to maintain state
+
 ### Redis Integration
 
 **Commands used:**
+
 - `PSETEX key ms value` - Store token count with TTL
 - `PTTL key` - Get remaining milliseconds to calculate refills
 - `GET key` - Retrieve current token count
+- `TIME` - Sliding window obtains Redis time for millisecond precision
 
 **Data storage:**
+
 - Key: User-provided identifier
 - Value: Integer token count
 - TTL: Automatically expires when period ends
@@ -123,7 +160,7 @@ SHIELD.absorb user123 30 60 13  # 30 capacity, 60s period, consume 13
 ### Benchmarks (November 2025)
 
 | Operation | Latency (P50) | Throughput |
-|-----------|---------------|------------|
+| ----------- | --------------- | ------------ |
 | New bucket | ~37 µs | ~27K ops/s |
 | Existing bucket | ~19 µs | ~53K ops/s |
 | Denied request | ~19 µs | ~53K ops/s |
@@ -137,22 +174,30 @@ SHIELD.absorb user123 30 60 13  # 30 capacity, 60s period, consume 13
 1. Maintain sub-millisecond latency requirement
 2. Avoid heap allocations in hot paths
 3. Use `Result<T, RedisError>` for error handling
-4. Test with `REDIS_URL=redis://127.0.0.1:6379 cargo test`
-5. Run benchmarks to verify no performance regression
+4. Prefer stack allocations (e.g., `ArrayString`, `itoa::Buffer`) on hot paths
+5. Test with `REDIS_URL=redis://127.0.0.1:6379 cargo test`
+6. Run benchmarks to verify no performance regression
 
-### Modifying Token Bucket Logic
+### Modifying Algorithms
 
-- Core algorithm in `bucket.rs::fetch_tokens()` and `bucket.rs::pour()`
-- Uses i128 intermediate calculations for precision
-- TTL-based timing system (milliseconds)
-- Handle edge cases: missing keys, no TTL, corrupted data
+- Token bucket: `algorithm/token_bucket.rs::{new, pour, fetch_tokens}`
+- Leaky bucket: `algorithm/leaky_bucket.rs::{new, add, fetch_level}`
+- Fixed window: `algorithm/fixed_window.rs::{new, consume, fetch_count, persist_count}`
+- Sliding window: `algorithm/sliding_window.rs::{new, consume, load_state, persist_state}`
+- All algorithms:
+  - Use i128 intermediates where overflow is possible
+  - Handle corrupted/missing Redis data defensively
+  - Keep TTL calculations in milliseconds
+  - Avoid heap allocations inside hot functions; rely on `itoa`, stack buffers
 
 ### Testing
 
-- Integration tests in `lib.rs` (~660 lines, 26 tests)
-- Requires running Redis instance
+- Integration tests remain in `lib.rs` (requires running Redis)
+- Unit tests (no Redis needed) cover:
+  - `command_parser` (argument parsing, positive integers)
+  - `traffic_policy` (key builder & suffixes)
+  - `algorithm::sliding_window` helpers (state encoding/usage math)
 - Tests use system allocator, production uses RedisAlloc
-- Mock Redis context with `redis_module::test::RedisContext`
 
 ## Security Considerations
 
@@ -186,6 +231,7 @@ SHIELD.absorb user123 30 60 13  # 30 capacity, 60s period, consume 13
 ---
 
 When making changes, prioritize:
+
 1. Maintaining performance (profile first)
 2. Rust safety and error handling
 3. Test coverage for edge cases
