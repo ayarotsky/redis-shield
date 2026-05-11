@@ -108,7 +108,7 @@ redis_module! {
     allocator: (get_allocator!(), get_allocator!()),
     data_types: [],
     commands: [
-        [REDIS_COMMAND, redis_command, "", 0, 0, 0],
+        [REDIS_COMMAND, redis_command, "", 0, 0, 0, ""],
     ],
 }
 
