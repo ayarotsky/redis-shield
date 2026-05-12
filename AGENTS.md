@@ -4,7 +4,7 @@
 
 ## Project Essentials
 
-- **Language:** Rust Edition 2021, MSRV 1.91.1
+- **Language:** Rust Edition 2024, MSRV 1.95.0
 - **Platforms:** Linux (x86_64, aarch64), macOS (x86_64, aarch64)
 - **Core Files:** `src/lib.rs` (command handler), `src/bucket.rs` (token bucket algorithm)
 - **Performance:** 50K-55K req/s throughput, ~19µs latency per operation

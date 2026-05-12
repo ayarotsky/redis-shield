@@ -17,7 +17,7 @@ Thank you for your interest in contributing to Redis Shield! This document provi
 
 Redis Shield is a Redis loadable module written in Rust. Before contributing, make sure you have:
 
-- Rust toolchain 1.91.1 or later
+- Rust toolchain 1.95.0 or later
 - Redis server running locally
 - Basic understanding of Redis modules and the token bucket algorithm
 

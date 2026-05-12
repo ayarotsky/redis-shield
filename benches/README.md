@@ -5,7 +5,7 @@ This directory contains performance benchmarks for the Redis Shield rate limitin
 ## Prerequisites
 
 1. **Redis Server**: You must have a Redis server running with the Redis Shield module loaded
-2. **Rust**: Rust 1.91.1 or later
+2. **Rust**: Rust 1.95.0 or later
 3. **Environment Variable**: Set `REDIS_URL` to your Redis instance (defaults to `redis://127.0.0.1:6379`)
 
 ## Running Benchmarks
