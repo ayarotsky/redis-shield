@@ -59,6 +59,7 @@ macro_rules! get_allocator {
 /// SHIELD.absorb user123 30 60 5   # Remove 5 tokens from the same bucket
 /// ```
 #[inline]
+#[allow(clippy::needless_pass_by_value)] // signature is dictated by the redis_module! macro
 fn redis_command(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     // Validate argument count
     if !matches!(args.len(), MIN_ARGS_LEN..=MAX_ARGS_LEN) {
@@ -80,25 +81,25 @@ fn redis_command(ctx: &Context, args: Vec<RedisString>) -> RedisResult {
     Ok(remaining_tokens.into())
 }
 
-/// Parses a RedisString argument as a positive integer.
+/// Parses a `RedisString` argument as a positive integer.
 ///
 /// # Arguments
 /// * `name` - The name of the parameter for error messages
-/// * `value` - The RedisString value to parse
+/// * `value` - The `RedisString` value to parse
 ///
 /// # Returns
 /// * `Ok(i64)` - The parsed positive integer
 /// * `Err(RedisError)` - If the value is not a positive integer
 ///
 /// # Errors
-/// Returns a RedisError with a descriptive message if:
+/// Returns a `RedisError` with a descriptive message if:
 /// - The value cannot be parsed as an integer
 /// - The parsed integer is not positive (≤ 0)
 #[inline]
 fn parse_positive_integer(name: &str, value: &RedisString) -> Result<i64, RedisError> {
     match value.parse_integer() {
         Ok(arg) if arg > 0 => Ok(arg),
-        _ => Err(RedisError::String(format!("ERR {} must be positive", name))),
+        _ => Err(RedisError::String(format!("ERR {name} must be positive"))),
     }
 }
 
@@ -124,10 +125,10 @@ mod tests {
     use std::env;
     use std::{thread, time};
 
-    /// Establishes a connection to Redis using the REDIS_URL environment variable.
+    /// Establishes a connection to Redis using the `REDIS_URL` environment variable.
     ///
     /// # Panics
-    /// Panics if REDIS_URL is not set or connection fails.
+    /// Panics if `REDIS_URL` is not set or connection fails.
     fn establish_connection() -> redis::Connection {
         let redis_url = env::var("REDIS_URL").unwrap();
         let client = redis::Client::open(redis_url).unwrap();
@@ -255,7 +256,7 @@ mod tests {
         let _: () = redis::cmd(REDIS_COMMAND)
             .arg(bucket_key)
             .arg(TEST_CAPACITY)
-            .arg(3.14)
+            .arg(1.5)
             .query(&mut con)
             .unwrap();
     }
@@ -356,9 +357,8 @@ mod tests {
 
         let ttl: i64 = con.pttl(bucket_key).unwrap();
         assert!(
-            ttl >= 59900 && ttl <= 60000,
-            "TTL should be close to 60000ms, got {}",
-            ttl
+            (59900..=60000).contains(&ttl),
+            "TTL should be close to 60000ms, got {ttl}"
         );
     }
 
@@ -377,9 +377,8 @@ mod tests {
 
         let ttl: i64 = con.pttl(bucket_key).unwrap();
         assert!(
-            ttl >= 59900 && ttl <= 60000,
-            "TTL should be close to 60000ms, got {}",
-            ttl
+            (59900..=60000).contains(&ttl),
+            "TTL should be close to 60000ms, got {ttl}"
         );
     }
 
@@ -436,7 +435,7 @@ mod tests {
 
         let ttl: i64 = con.pttl(bucket_key).unwrap();
         assert!(
-            ttl >= 59900 && ttl <= 60000,
+            (59900..=60000).contains(&ttl),
             "TTL should be close to 60000ms"
         );
 
@@ -446,7 +445,7 @@ mod tests {
 
         let ttl: i64 = con.pttl(bucket_key).unwrap();
         assert!(
-            ttl >= 59900 && ttl <= 60000,
+            (59900..=60000).contains(&ttl),
             "TTL should be close to 60000ms"
         );
 
@@ -456,7 +455,7 @@ mod tests {
 
         let ttl: i64 = con.pttl(bucket_key).unwrap();
         assert!(
-            ttl >= 59900 && ttl <= 60000,
+            (59900..=60000).contains(&ttl),
             "TTL should be close to 60000ms"
         );
     }
@@ -474,7 +473,7 @@ mod tests {
         assert_eq!(remaining_tokens, 2, "Initial request should leave 2 tokens");
 
         // Wait for some refill (1/3 of period + buffer)
-        thread::sleep(time::Duration::from_secs((period / 3) as u64 + 1));
+        thread::sleep(time::Duration::from_secs(u64::try_from(period / 3).unwrap() + 1));
 
         // Should have refilled approximately 1 token
         let remaining_tokens = shield_absorb(&mut con, bucket_key, capacity, period, None).unwrap();
@@ -492,7 +491,7 @@ mod tests {
         );
 
         // Wait for full refill
-        thread::sleep(time::Duration::from_secs(period as u64));
+        thread::sleep(time::Duration::from_secs(u64::try_from(period).unwrap()));
 
         // Should be fully refilled
         let remaining_tokens = shield_absorb(&mut con, bucket_key, capacity, period, None).unwrap();
@@ -744,9 +743,8 @@ mod tests {
         let remaining_tokens = shield_absorb(&mut con, bucket_key, capacity, period, None).unwrap();
         // Allow for some timing variance
         assert!(
-            remaining_tokens >= 98 && remaining_tokens <= 99,
-            "Should have refilled approximately 50 tokens, got {}",
-            remaining_tokens
+            (98..=99).contains(&remaining_tokens),
+            "Should have refilled approximately 50 tokens, got {remaining_tokens}"
         );
     }
 
@@ -761,9 +759,8 @@ mod tests {
 
         let ttl: i64 = con.pttl(bucket_key).unwrap();
         assert!(
-            ttl >= 29900 && ttl <= 30000,
-            "TTL should be close to 30000ms for 30s period, got {}",
-            ttl
+            (29900..=30000).contains(&ttl),
+            "TTL should be close to 30000ms for 30s period, got {ttl}"
         );
 
         // Test with very short period
@@ -773,9 +770,8 @@ mod tests {
         let _remaining_tokens = shield_absorb(&mut con, short_key, 10, 1, None).unwrap();
         let ttl: i64 = con.pttl(short_key).unwrap();
         assert!(
-            ttl >= 900 && ttl <= 1000,
-            "TTL should be close to 1000ms for 1s period, got {}",
-            ttl
+            (900..=1000).contains(&ttl),
+            "TTL should be close to 1000ms for 1s period, got {ttl}"
         );
     }
 
@@ -879,8 +875,7 @@ mod tests {
         // Verify tokens are positive and correctly calculated
         assert!(
             remaining_tokens >= 0,
-            "Tokens should never be negative, got {}",
-            remaining_tokens
+            "Tokens should never be negative, got {remaining_tokens}"
         );
         assert_eq!(
             remaining_tokens,
@@ -923,11 +918,8 @@ mod tests {
         let expected_min = extreme_capacity - 1000 - 5000;
         let expected_max = extreme_capacity - 5000; // Max if fully refilled before second call
         assert!(
-            remaining_tokens >= expected_min && remaining_tokens <= expected_max,
-            "Sequential operations should work correctly, expected between {} and {}, got {}",
-            expected_min,
-            expected_max,
-            remaining_tokens
+            (expected_min..=expected_max).contains(&remaining_tokens),
+            "Sequential operations should work correctly, expected between {expected_min} and {expected_max}, got {remaining_tokens}"
         );
     }
 
@@ -952,7 +944,7 @@ mod tests {
         );
 
         // Wait for refill
-        thread::sleep(time::Duration::from_secs(short_period as u64 + 1));
+        thread::sleep(time::Duration::from_secs(u64::try_from(short_period).unwrap() + 1));
 
         // Should be fully refilled (or very close)
         let remaining_tokens =
@@ -962,8 +954,7 @@ mod tests {
         // After full refill and consuming 1M, should have large_capacity - 1M
         assert!(
             remaining_tokens >= large_capacity - 1_000_000 - 100_000,
-            "Should refill correctly with large capacity, got {}",
-            remaining_tokens
+            "Should refill correctly with large capacity, got {remaining_tokens}"
         );
         assert!(
             remaining_tokens >= 0,

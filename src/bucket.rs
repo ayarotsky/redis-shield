@@ -147,7 +147,10 @@ impl<'a> Bucket<'a> {
         // Use integer arithmetic to avoid float conversion overhead
         // We use i128 for intermediate calculation to prevent overflow
         let elapsed = self.period - current_ttl;
-        let refilled_tokens = ((elapsed as i128 * self.capacity as i128) / self.period as i128) as i64;
+        // elapsed <= period (PTTL is clamped above), so the result is bounded by capacity (i64).
+        #[allow(clippy::cast_possible_truncation)]
+        let refilled_tokens =
+            ((i128::from(elapsed) * i128::from(self.capacity)) / i128::from(self.period)) as i64;
 
         // Get the current token count stored in Redis
         let remaining_tokens = match self.ctx.call("GET", &[self.key])? {

@@ -1,4 +1,4 @@
-name: Code Review
+name: CI
 
 on:
   push:
@@ -57,7 +57,7 @@ jobs:
 
       - name: Run cargo checks
         run: |
-          cargo clippy &
+          cargo clippy --all-targets --all-features -- -D warnings &
           cargo fmt --all -- --check &
           cargo deny check &
           wait
