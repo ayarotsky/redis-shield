@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use redis::{Commands, Connection};
 use std::env;
 use std::hint::black_box;
@@ -10,12 +10,9 @@ const REDIS_COMMAND: &str = "SHIELD.absorb";
 /// # Panics
 /// Panics if `REDIS_URL` is not set or connection fails.
 fn establish_connection() -> Connection {
-    let redis_url = env::var("REDIS_URL")
-        .unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string());
-    let client = redis::Client::open(redis_url)
-        .expect("Failed to create Redis client");
-    client.get_connection()
-        .expect("Failed to connect to Redis")
+    let redis_url = env::var("REDIS_URL").unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string());
+    let client = redis::Client::open(redis_url).expect("Failed to create Redis client");
+    client.get_connection().expect("Failed to connect to Redis")
 }
 
 /// Helper function to execute SHIELD.absorb command
@@ -78,8 +75,7 @@ fn bench_existing_bucket_allowed(c: &mut Criterion) {
 
         // Pre-create the bucket
         cleanup_key(&mut con, &key);
-        shield_absorb(&mut con, &key, *capacity, 60, Some(1))
-            .expect("Failed to create bucket");
+        shield_absorb(&mut con, &key, *capacity, 60, Some(1)).expect("Failed to create bucket");
 
         group.throughput(Throughput::Elements(1));
         group.bench_with_input(
@@ -112,8 +108,7 @@ fn bench_denied_requests(c: &mut Criterion) {
 
     // Pre-create bucket with very low capacity
     cleanup_key(&mut con, key);
-    shield_absorb(&mut con, key, 1, 60, Some(1))
-        .expect("Failed to create bucket");
+    shield_absorb(&mut con, key, 1, 60, Some(1)).expect("Failed to create bucket");
 
     group.throughput(Throughput::Elements(1));
     group.bench_function("insufficient_tokens", |b| {
@@ -142,24 +137,20 @@ fn bench_token_consumption(c: &mut Criterion) {
         let key = format!("bench:tokens:{tokens}");
 
         group.throughput(Throughput::Elements(u64::try_from(*tokens).unwrap()));
-        group.bench_with_input(
-            BenchmarkId::new("tokens", tokens),
-            tokens,
-            |b, &tok| {
-                b.iter(|| {
-                    let key = format!("bench:tokens:{tok}");
-                    // Reset bucket each iteration
-                    cleanup_key(&mut con, &key);
-                    shield_absorb(
-                        &mut con,
-                        black_box(&key),
-                        black_box(1000),
-                        black_box(60),
-                        Some(black_box(tok)),
-                    )
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("tokens", tokens), tokens, |b, &tok| {
+            b.iter(|| {
+                let key = format!("bench:tokens:{tok}");
+                // Reset bucket each iteration
+                cleanup_key(&mut con, &key);
+                shield_absorb(
+                    &mut con,
+                    black_box(&key),
+                    black_box(1000),
+                    black_box(60),
+                    Some(black_box(tok)),
+                )
+            });
+        });
 
         cleanup_key(&mut con, &key);
     }
@@ -208,16 +199,14 @@ fn bench_high_frequency(c: &mut Criterion) {
 
     // Pre-create bucket with high capacity
     cleanup_key(&mut con, key);
-    shield_absorb(&mut con, key, 10000, 60, Some(1))
-        .expect("Failed to create bucket");
+    shield_absorb(&mut con, key, 10000, 60, Some(1)).expect("Failed to create bucket");
 
     group.throughput(Throughput::Elements(100));
     group.bench_function("100_sequential_requests", |b| {
         b.iter(|| {
             // Reset bucket
             cleanup_key(&mut con, key);
-            shield_absorb(&mut con, key, 10000, 60, Some(1))
-                .expect("Failed to create bucket");
+            shield_absorb(&mut con, key, 10000, 60, Some(1)).expect("Failed to create bucket");
 
             // Make 100 requests
             for _ in 0..100 {
@@ -227,7 +216,8 @@ fn bench_high_frequency(c: &mut Criterion) {
                     black_box(10000),
                     black_box(60),
                     Some(black_box(1)),
-                ).expect("Request failed");
+                )
+                .expect("Request failed");
             }
         });
     });
@@ -245,8 +235,7 @@ fn bench_refill_calculation(c: &mut Criterion) {
 
     // Create a bucket and exhaust it
     cleanup_key(&mut con, key);
-    shield_absorb(&mut con, key, 100, 1, Some(100))
-        .expect("Failed to create bucket");
+    shield_absorb(&mut con, key, 100, 1, Some(100)).expect("Failed to create bucket");
 
     group.throughput(Throughput::Elements(1));
     group.bench_function("after_partial_refill", |b| {
@@ -334,28 +323,27 @@ fn bench_key_lengths(c: &mut Criterion) {
     let keys = vec![
         ("short", "x"),
         ("medium", "user:12345"),
-        ("long", "api:v2:endpoint:/very/long/path:user:12345:session:abcdef"),
+        (
+            "long",
+            "api:v2:endpoint:/very/long/path:user:12345:session:abcdef",
+        ),
         ("very_long", very_long_key.as_str()),
     ];
 
     for (name, key) in keys {
         group.throughput(Throughput::Elements(1));
-        group.bench_with_input(
-            BenchmarkId::new("key_length", name),
-            &key,
-            |b, key| {
-                b.iter(|| {
-                    cleanup_key(&mut con, key);
-                    shield_absorb(
-                        &mut con,
-                        black_box(key),
-                        black_box(100),
-                        black_box(60),
-                        Some(black_box(1)),
-                    )
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("key_length", name), &key, |b, key| {
+            b.iter(|| {
+                cleanup_key(&mut con, key);
+                shield_absorb(
+                    &mut con,
+                    black_box(key),
+                    black_box(100),
+                    black_box(60),
+                    Some(black_box(1)),
+                )
+            });
+        });
         cleanup_key(&mut con, key);
     }
 

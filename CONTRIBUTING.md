@@ -18,7 +18,8 @@ Thank you for your interest in contributing to Redis Shield! This document provi
 Redis Shield is a Redis loadable module written in Rust. Before contributing, make sure you have:
 
 - Rust toolchain 1.95.0 or later
-- Redis server running locally
+- Redis server installed locally
+- [`just`](https://github.com/casey/just) task runner (`cargo install just`)
 - Basic understanding of Redis modules and the token bucket algorithm
 
 ## Development Setup
@@ -30,43 +31,44 @@ git clone https://github.com/ayarotsky/redis-shield.git
 cd redis-shield
 ```
 
-2. **Build the project:**
+2. **Install dev tools:**
 
 ```bash
-cargo build --release
+just install-tools  # cargo-deny, cargo-audit, cargo-auditable, cargo-pants
 ```
 
-3. **Load the module in Redis:**
+3. **Build the project:**
 
 ```bash
-# Extension will be .dylib on macOS, .so on Linux
-redis-server --loadmodule target/release/libredis_shield.so
+just build-release
 ```
 
-4. **Verify the module is loaded:**
+4. **Start Redis with the module loaded (port 34567):**
 
 ```bash
-redis-cli
-127.0.0.1:6379> SHIELD.absorb test 10 60 1
+just redis-up
+```
+
+5. **Verify the module is loaded:**
+
+```bash
+redis-cli -p 34567
+127.0.0.1:34567> SHIELD.absorb test 10 60 1
 (integer) 9
 ```
 
+Run `just --list` to see all available recipes.
+
 ## Running Tests
 
-Redis Shield requires a running Redis instance for integration tests.
+`just redis-up` starts Redis with the freshly-built module loaded; `just test`
+points at it via `REDIS_URL`.
 
 ```bash
-# Start Redis (in a separate terminal)
-redis-server
-
-# Run tests
-REDIS_URL=redis://127.0.0.1:6379 cargo test
-
-# Run tests with output
-REDIS_URL=redis://127.0.0.1:6379 cargo test -- --nocapture
-
-# Run specific test
-REDIS_URL=redis://127.0.0.1:6379 cargo test test_name
+just redis-up              # one-time per shell session
+just test                  # run the full suite
+just test-filter refill    # run tests matching a name filter
+just redis-down            # stop the daemonized Redis when done
 ```
 
 All tests must pass before submitting a pull request.
@@ -78,18 +80,10 @@ Redis Shield includes comprehensive performance benchmarks using [Criterion.rs](
 ### Quick Start
 
 ```bash
-# Ensure Redis is running with the module loaded
-export REDIS_URL=redis://127.0.0.1:6379
-
-# Run all benchmarks
-cargo bench
-
-# Run specific benchmark group
-cargo bench -- new_bucket
-
-# Generate HTML reports (saved to target/criterion/)
-cargo bench
-open target/criterion/report/index.html
+just redis-up                       # ensure Redis is up with the module loaded
+just bench                          # run all benchmarks
+just bench-filter new_bucket        # run a specific benchmark group
+open target/criterion/report/index.html  # view HTML reports
 ```
 
 ### Performance Tracking
@@ -113,18 +107,12 @@ We follow standard Rust conventions and enforce them through tooling.
 Before committing, run:
 
 ```bash
-# Format code
-cargo fmt
-
-# Check formatting without modifying files
-cargo fmt --check
-
-# Run Clippy (all warnings are errors)
-cargo clippy -- -D warnings
-
-# Security audit
-cargo audit
+just lint    # fmt --check, clippy -D warnings, cargo deny, cargo pants
+just audit   # cargo audit (refreshes the advisory DB first)
 ```
+
+Use `cargo fmt` directly if you want the formatter to rewrite files (rather than
+just check them).
 
 ### Style Guidelines
 
@@ -208,11 +196,8 @@ git commit -m "Your descriptive commit message"
 3. **Run all checks:**
 
 ```bash
-cargo fmt
-cargo clippy -- -D warnings
-cargo audit
-REDIS_URL=redis://127.0.0.1:6379 cargo test
-cargo bench  # If performance-related
+just ci             # full local mirror of .github/workflows/ci.yml
+just bench          # if performance-related
 ```
 
 4. **Push to your fork:**
