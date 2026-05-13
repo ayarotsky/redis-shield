@@ -44,46 +44,26 @@ jobs:
           path: ~/.cargo/bin
           key: cargo-tools-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Install cargo dependencies
-        run: |
-          for crate in cargo-deny cargo-pants cargo-audit cargo-auditable; do
-            if ! command -v "$crate" >/dev/null 2>&1; then
-              echo "Installing $crate..."
-              cargo install --quiet "$crate"
-            else
-              echo "$crate already installed, skipping."
-            fi
-          done
+      - name: Install just
+        uses: extractions/setup-just@v4
 
-      - name: Run cargo checks
-        run: |
-          cargo clippy --all-targets --all-features -- -D warnings &
-          cargo fmt --all -- --check &
-          cargo deny check &
-          wait
-          cargo pants
+      - name: Install cargo tools
+        run: just install-tools
+
+      - name: Lint
+        run: just lint
 
       - name: Build SHIELD module
-        run: cargo auditable build --target x86_64-unknown-linux-gnu
-
-      - name: cargo audit
-        run: |
-          rm -rf ~/.cargo/advisory-db
-          cargo audit
+        run: just build
 
       - name: Start Redis with SHIELD module
-        run: |
-          redis-server \
-            --port 34567 \
-            --loadmodule target/x86_64-unknown-linux-gnu/debug/libredis_shield.so \
-            --daemonize yes
-          sleep 2
-          redis-cli -p 34567 ping
+        run: just redis-up
 
       - name: Run tests
-        env:
-          REDIS_URL: redis://127.0.0.1:34567/1
-        run: cargo test --quiet
+        run: just test
+
+      - name: Audit dependencies
+        run: just audit
 
   commitlint:
     runs-on: ubuntu-latest

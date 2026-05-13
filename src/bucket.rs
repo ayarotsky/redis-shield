@@ -163,7 +163,9 @@ impl<'a> Bucket<'a> {
 
         // Update token count: add refilled tokens but don't exceed capacity
         // Use saturating_add to prevent overflow before min() is applied
-        self.tokens = remaining_tokens.saturating_add(refilled_tokens).min(self.capacity);
+        self.tokens = remaining_tokens
+            .saturating_add(refilled_tokens)
+            .min(self.capacity);
         Ok(())
     }
 }
