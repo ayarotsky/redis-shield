@@ -5,10 +5,10 @@ use std::hint::black_box;
 
 const REDIS_COMMAND: &str = "SHIELD.absorb";
 
-/// Establishes a connection to Redis using the REDIS_URL environment variable.
+/// Establishes a connection to Redis using the `REDIS_URL` environment variable.
 ///
 /// # Panics
-/// Panics if REDIS_URL is not set or connection fails.
+/// Panics if `REDIS_URL` is not set or connection fails.
 fn establish_connection() -> Connection {
     let redis_url = env::var("REDIS_URL")
         .unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string());
@@ -45,13 +45,13 @@ fn bench_new_bucket(c: &mut Criterion) {
     let mut group = c.benchmark_group("new_bucket");
 
     // Benchmark with different capacity sizes
-    for capacity in [10, 100, 1000, 10000].iter() {
+    for capacity in &[10, 100, 1000, 10000] {
         group.throughput(Throughput::Elements(1));
         group.bench_with_input(
             BenchmarkId::new("capacity", capacity),
             capacity,
             |b, &cap| {
-                let key = format!("bench:new:{}", cap);
+                let key = format!("bench:new:{cap}");
                 b.iter(|| {
                     cleanup_key(&mut con, &key);
                     shield_absorb(
@@ -73,8 +73,8 @@ fn bench_existing_bucket_allowed(c: &mut Criterion) {
     let mut con = establish_connection();
     let mut group = c.benchmark_group("existing_bucket_allowed");
 
-    for capacity in [10, 100, 1000, 10000].iter() {
-        let key = format!("bench:existing:{}", capacity);
+    for capacity in &[10, 100, 1000, 10000] {
+        let key = format!("bench:existing:{capacity}");
 
         // Pre-create the bucket
         cleanup_key(&mut con, &key);
@@ -89,7 +89,7 @@ fn bench_existing_bucket_allowed(c: &mut Criterion) {
                 b.iter(|| {
                     shield_absorb(
                         &mut con,
-                        black_box(&format!("bench:existing:{}", cap)),
+                        black_box(&format!("bench:existing:{cap}")),
                         black_box(cap),
                         black_box(60),
                         Some(black_box(1)),
@@ -138,16 +138,16 @@ fn bench_token_consumption(c: &mut Criterion) {
     let mut con = establish_connection();
     let mut group = c.benchmark_group("token_consumption");
 
-    for tokens in [1, 5, 10, 50, 100].iter() {
-        let key = format!("bench:tokens:{}", tokens);
+    for tokens in &[1_i64, 5, 10, 50, 100] {
+        let key = format!("bench:tokens:{tokens}");
 
-        group.throughput(Throughput::Elements(*tokens as u64));
+        group.throughput(Throughput::Elements(u64::try_from(*tokens).unwrap()));
         group.bench_with_input(
             BenchmarkId::new("tokens", tokens),
             tokens,
             |b, &tok| {
                 b.iter(|| {
-                    let key = format!("bench:tokens:{}", tok);
+                    let key = format!("bench:tokens:{tok}");
                     // Reset bucket each iteration
                     cleanup_key(&mut con, &key);
                     shield_absorb(
@@ -172,8 +172,8 @@ fn bench_period_variations(c: &mut Criterion) {
     let mut group = c.benchmark_group("period_variations");
 
     // Test with periods from 1 second to 1 hour
-    for period in [1, 10, 60, 300, 3600].iter() {
-        let key = format!("bench:period:{}", period);
+    for period in &[1, 10, 60, 300, 3600] {
+        let key = format!("bench:period:{period}");
 
         group.throughput(Throughput::Elements(1));
         group.bench_with_input(
@@ -181,7 +181,7 @@ fn bench_period_variations(c: &mut Criterion) {
             period,
             |b, &per| {
                 b.iter(|| {
-                    let key = format!("bench:period:{}", per);
+                    let key = format!("bench:period:{per}");
                     cleanup_key(&mut con, &key);
                     shield_absorb(
                         &mut con,

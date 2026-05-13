@@ -33,5 +33,5 @@ name = "shield_benchmarks"
 harness = false
 
 [lints.clippy]
-all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
 doc_overindented_list_items = "allow"
