@@ -2,9 +2,10 @@
 
 ![Build Status](https://github.com/ayarotsky/redis-shield/actions/workflows/ci.yml/badge.svg?branch=main)
 
-Redis Shield is a loadable Redis module that implements the
+Redis Shield is a loadable module for [Redis](https://redis.io) and
+[Valkey](https://valkey.io) that implements the
 [token bucket algorithm](https://en.wikipedia.org/wiki/Token_bucket)
-to do rate limiting as a native command.
+to do rate limiting as a native command. The same compiled artifact loads into either server.
 
 ## Algorithm
 
@@ -26,11 +27,12 @@ Clone and build the project from source.
     $ # extension will be **.dylib** instead of **.so** for Mac releases
     $ cp target/release/libredis_shield.so /path/to/modules/
 
-Run redis-server pointing to the newly built module:
+Run `redis-server` or `valkey-server` pointing to the newly built module:
 
-    redis-server --loadmodule /path/to/modules/libredis_shield.so
+    redis-server  --loadmodule /path/to/modules/libredis_shield.so
+    valkey-server --loadmodule /path/to/modules/libredis_shield.so
 
-**Or** add the following to a `redis.conf` file:
+**Or** add the following to a `redis.conf` or `valkey.conf` file:
 
     loadmodule /path/to/modules/libredis_shield.so
 

@@ -217,7 +217,6 @@ Redis Shield is production-ready for:
 - No buffer overflows (Rust safety)
 - No SQL/command injection vectors
 - Proper error handling
-- Active dependency scanning (cargo-audit)
 - Fixed vulnerabilities: RUSTSEC-2024-0421, RUSTSEC-2024-0407
 
 ✅ **Resilience:**
@@ -340,9 +339,6 @@ REDIS_URL=redis://127.0.0.1:6379 cargo test
 
 # Run benchmarks
 cargo bench
-
-# Security audit
-cargo audit
 
 # Format check
 cargo fmt --check
