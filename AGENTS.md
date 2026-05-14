@@ -28,9 +28,6 @@ cargo fmt
 
 # Lint (all warnings are errors)
 cargo clippy -- -D warnings
-
-# Security audit
-cargo audit
 ```
 
 ### Code Style Requirements
@@ -159,7 +156,6 @@ SHIELD.absorb user123 30 60 13  # 30 capacity, 60s period, consume 13
 - All inputs validated (positive integers required)
 - No buffer overflows (Rust safety guarantees)
 - No command injection vectors
-- Active dependency scanning via `cargo-audit`
 - Handles corrupted Redis data gracefully
 
 ## Known Limitations

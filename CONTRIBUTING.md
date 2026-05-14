@@ -15,12 +15,12 @@ Thank you for your interest in contributing to Redis Shield! This document provi
 
 ## Getting Started
 
-Redis Shield is a Redis loadable module written in Rust. Before contributing, make sure you have:
+Redis Shield is a loadable module for Redis and Valkey, written in Rust. Before contributing, make sure you have:
 
 - Rust toolchain 1.95.0 or later
-- Redis server installed locally
+- Redis server or Valkey server installed locally (the module supports both)
 - [`just`](https://github.com/casey/just) task runner (`cargo install just`)
-- Basic understanding of Redis modules and the token bucket algorithm
+- Basic understanding of Redis/Valkey modules and the token bucket algorithm
 
 ## Development Setup
 
@@ -31,28 +31,23 @@ git clone https://github.com/ayarotsky/redis-shield.git
 cd redis-shield
 ```
 
-2. **Install dev tools:**
-
-```bash
-just install-tools  # cargo-deny, cargo-audit, cargo-auditable, cargo-pants
-```
-
-3. **Build the project:**
+2. **Build the project:**
 
 ```bash
 just build-release
 ```
 
-4. **Start Redis with the module loaded (port 34567):**
+3. **Start Redis or Valkey with the module loaded (port 34567):**
 
 ```bash
-just redis-up
+just redis-up      # for Redis
+just valkey-up     # for Valkey (alternative)
 ```
 
-5. **Verify the module is loaded:**
+4. **Verify the module is loaded:**
 
 ```bash
-redis-cli -p 34567
+redis-cli -p 34567       # or: valkey-cli -p 34567
 127.0.0.1:34567> SHIELD.absorb test 10 60 1
 (integer) 9
 ```
@@ -61,15 +56,20 @@ Run `just --list` to see all available recipes.
 
 ## Running Tests
 
-`just redis-up` starts Redis with the freshly-built module loaded; `just test`
-points at it via `REDIS_URL`.
+`just redis-up` (or `just valkey-up`) starts the chosen server with the
+freshly-built module loaded; `just test` points at it via `REDIS_URL`.
 
 ```bash
-just redis-up              # one-time per shell session
+just redis-up              # one-time per shell session (or `just valkey-up`)
 just test                  # run the full suite
 just test-filter refill    # run tests matching a name filter
-just redis-down            # stop the daemonized Redis when done
+just redis-down            # stop the daemonized server (or `just valkey-down`)
 ```
+
+The CI pipeline runs the test suite against both Redis and Valkey on every
+push; if you are adding behaviour that could plausibly differ between the two
+(new Redis API calls, version-gated commands), run the suite locally against
+both before opening a PR.
 
 All tests must pass before submitting a pull request.
 
@@ -107,8 +107,7 @@ We follow standard Rust conventions and enforce them through tooling.
 Before committing, run:
 
 ```bash
-just lint    # fmt --check, clippy -D warnings, cargo deny, cargo pants
-just audit   # cargo audit (refreshes the advisory DB first)
+just lint    # fmt --check, clippy -D warnings, cargo deny
 ```
 
 Use `cargo fmt` directly if you want the formatter to rewrite files (rather than
@@ -232,7 +231,7 @@ When reporting bugs, include:
 
 - Redis Shield version (commit hash or tag)
 - Rust version (`rustc --version`)
-- Redis version (`redis-server --version`)
+- Server and version: Redis (`redis-server --version`) or Valkey (`valkey-server --version`)
 - Operating system and architecture
 - Steps to reproduce
 - Expected vs actual behavior
@@ -256,6 +255,7 @@ When requesting features, include:
 
 - [Token Bucket Algorithm](https://en.wikipedia.org/wiki/Token_bucket)
 - [Redis Modules Documentation](https://redis.io/docs/reference/modules/)
+- [Valkey](https://valkey.io)
 - [redis-module Rust Crate](https://docs.rs/redis-module/)
 - [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/)
 

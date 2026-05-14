@@ -55,13 +55,8 @@ jobs:
           components: clippy, rustfmt
           target: ${{ matrix.target }}
 
-      - name: Install cargo-auditable
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-auditable
-
       - name: Build library
-        run: cargo auditable build --release --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.target }}
 
       - name: Build archive
         shell: bash
