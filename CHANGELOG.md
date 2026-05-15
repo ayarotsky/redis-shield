@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.0] - 2026-05-14
 
 ### Added
-- Release artifacts for `aarch64-unknown-linux-gnu` and `x86_64-unknown-linux-musl`
+- Release artifact for `aarch64-unknown-linux-gnu`
 - Compatibility with Valkey in addition to Redis
 
 ### Changed
