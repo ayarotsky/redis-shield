@@ -16,6 +16,7 @@ jobs:
       - uses: taiki-e/create-gh-release-action@v1
         with:
           changelog: CHANGELOG.md
+          draft: true
           token: ${{ secrets.RELEASE_TOKEN }}
 
   upload-assets:

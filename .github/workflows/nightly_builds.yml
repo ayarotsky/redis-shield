@@ -1,0 +1,117 @@
+name: Nightly Builds
+
+on:
+  schedule:
+    - cron: "0 8 * * 0"
+  workflow_dispatch:
+
+env:
+  RUST_BACKTRACE: "1"
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+
+permissions:
+  contents: read
+
+jobs:
+  tests-redis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        redis-version: ["8.x", "unstable"]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache-key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: Install just
+        uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
+      - name: Build SHIELD module
+        run: cargo build
+
+      - name: Start Redis with SHIELD module
+        uses: shogo82148/actions-setup-redis@v1
+        with:
+          redis-version: ${{ matrix.redis-version }}
+          redis-port: "34567"
+          redis-conf: |
+            loadmodule ${{ github.workspace }}/target/debug/libredis_shield.so
+
+      - name: Run tests
+        run: just test
+
+  tests-valkey:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        redis-version: ["8.x", "unstable"]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache-key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: Install just
+        uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
+      - name: Build SHIELD module
+        run: cargo build
+
+      - name: Start Valkey with SHIELD module
+        uses: shogo82148/actions-setup-redis@v1
+        with:
+          distribution: valkey
+          redis-version: ${{ matrix.redis-version }}
+          redis-port: "34567"
+          redis-conf: |
+            loadmodule ${{ github.workspace }}/target/debug/libredis_shield.so
+
+      - name: Run tests
+        run: just test
+
+  build-test:
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            cross: true
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup cross-compilation toolchain
+        if: matrix.cross
+        uses: taiki-e/setup-cross-toolchain-action@v1
+        with:
+          target: ${{ matrix.target }}
+
+      - name: Install rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          cache-key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
+          target: ${{ matrix.target }}
+
+      - name: Build library
+        run: cargo build --target ${{ matrix.target }}
