@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-05-14
+
+### Added
+- Release artifacts for `aarch64-unknown-linux-gnu` and `x86_64-unknown-linux-musl`
+- Compatibility with Valkey in addition to Redis
+
+### Changed
+- Roughly 3.5x performance improvements
+
+### Fixed
+- Reject large `period` values up front
+
 ## [1.0.0] - 2025-07-18
 
 ### Changed
