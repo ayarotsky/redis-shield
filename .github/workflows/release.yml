@@ -16,7 +16,7 @@ jobs:
       - uses: taiki-e/create-gh-release-action@v1
         with:
           changelog: CHANGELOG.md
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.RELEASE_TOKEN }}
 
   upload-assets:
     needs: create-release
@@ -26,15 +26,22 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-24.04-arm
           - target: x86_64-apple-darwin
             os: macos-latest
           - target: aarch64-apple-darwin
             os: macos-latest
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            cross: true
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
+
+      - name: Setup cross-compilation toolchain
+        if: matrix.cross
+        uses: taiki-e/setup-cross-toolchain-action@v1
+        with:
+          target: ${{ matrix.target }}
 
       - name: Get the release version from the tag
         shell: bash
@@ -43,7 +50,7 @@ jobs:
       - name: Install rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          cache-key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
+          cache-key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
           components: clippy, rustfmt
           target: ${{ matrix.target }}
 
@@ -72,6 +79,7 @@ jobs:
       - name: Upload asset
         uses: softprops/action-gh-release@v3
         with:
+          token: ${{ secrets.RELEASE_TOKEN }}
           append_body: true
           files: |
             ${{ env.ASSET }}
