@@ -41,6 +41,7 @@ jobs:
         with:
           redis-version: ${{ matrix.redis-version }}
           redis-port: "34567"
+          cache: false
           redis-conf: |
             loadmodule ${{ github.workspace }}/target/debug/libredis_shield.so
 
@@ -76,6 +77,7 @@ jobs:
           distribution: valkey
           redis-version: ${{ matrix.redis-version }}
           redis-port: "34567"
+          cache: false
           redis-conf: |
             loadmodule ${{ github.workspace }}/target/debug/libredis_shield.so
 

@@ -1,6 +1,7 @@
 # Redis Shield
 
 ![Build Status](https://github.com/ayarotsky/redis-shield/actions/workflows/ci.yml/badge.svg?branch=main)
+![Nightly Builds](https://github.com/ayarotsky/redis-shield/actions/workflows/nightly_builds.yml/badge.svg?branch=main)
 
 Redis Shield is a loadable module for [Redis](https://redis.io) and
 [Valkey](https://valkey.io) that implements the
