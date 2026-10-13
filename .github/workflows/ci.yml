@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@v2
         with:
           cache-key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
           components: clippy, rustfmt
@@ -60,7 +60,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@v2
         with:
           cache-key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
 
@@ -93,7 +93,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@v2
         with:
           cache-key: ${{ runner.os }}-cargo-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
 
@@ -144,7 +144,7 @@ jobs:
           target: ${{ matrix.target }}
 
       - name: Install rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@v2
         with:
           cache-key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
           target: ${{ matrix.target }}
