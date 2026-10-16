@@ -81,6 +81,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           token: ${{ secrets.RELEASE_TOKEN }}
+          draft: true
           append_body: true
           files: |
             ${{ env.ASSET }}
